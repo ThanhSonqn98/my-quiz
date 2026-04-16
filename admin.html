@@ -2,29 +2,165 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Bảng điểm Giáo viên</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống Quản trị - Giáo viên</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .sidebar { background: #2c3e50; min-height: 100vh; color: white; padding-top: 20px; }
+        .nav-link { color: #ecf0f1; margin: 10px 0; }
+        .nav-link:hover { background: #34495e; color: white; border-radius: 5px; }
+        .card { border: none; box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075); }
+        .hidden { display: none; }
+    </style>
 </head>
 <body>
-    <h2>Danh sách điểm học sinh</h2>
-    <table border="1" id="scoreTable" style="width:100%; text-align:left;">
-        <tr><th>Tên</th><th>Lớp</th><th>Điểm</th></tr>
-    </table>
 
-    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
-    <script>
-        const firebaseConfig = { /* DÁN GIỐNG HỆT FILE INDEX */ };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+<div class="container-fluid">
+    <div class="row">
+        <div id="login-section" class="col-md-4 offset-md-4 mt-5">
+            <div class="card p-4">
+                <h3 class="text-center mb-4">Giáo viên Đăng nhập</h3>
+                <div class="mb-3">
+                    <label>Email</label>
+                    <input type="email" id="admin-email" class="form-control" placeholder="admin@gmail.com">
+                </div>
+                <div class="mb-3">
+                    <label>Mật khẩu</label>
+                    <input type="password" id="admin-password" class="form-control">
+                </div>
+                <button onclick="login()" class="btn btn-primary w-100">Đăng nhập</button>
+            </div>
+        </div>
 
-        db.collection("results").orderBy("time", "desc").onSnapshot((snapshot) => {
-            const table = document.getElementById('scoreTable');
-            table.innerHTML = '<tr><th>Tên</th><th>Lớp</th><th>Điểm</th></tr>';
-            snapshot.forEach((doc) => {
+        <div id="dashboard-section" class="col-12 hidden">
+            <div class="row">
+                <div class="col-md-2 sidebar">
+                    <h4 class="text-center">SmartQuiz</h4>
+                    <hr>
+                    <nav class="nav flex-column px-3">
+                        <a class="nav-link active" href="#" onclick="showTab('scores')">Bảng điểm HS</a>
+                        <a class="nav-link" href="#" onclick="showTab('create-quiz')">Tạo đề thi</a>
+                        <a class="nav-link text-danger" href="#" onclick="location.reload()">Đăng xuất</a>
+                    </nav>
+                </div>
+
+                <div class="col-md-10 p-4">
+                    <div id="tab-scores">
+                        <h2 class="mb-4">Kết quả làm bài của học sinh</h2>
+                        <div class="card p-3">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Học sinh</th>
+                                        <th>Lớp</th>
+                                        <th>Điểm số</th>
+                                        <th>Chi tiết</th>
+                                        <th>Thời gian</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="score-table-body">
+                                    </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="tab-create-quiz" class="hidden">
+                        <h2 class="mb-4">Tạo câu hỏi mới</h2>
+                        <div class="card p-4">
+                            <div class="mb-3">
+                                <label class="form-label">Câu hỏi</label>
+                                <input type="text" id="new-q" class="form-control" placeholder="VD: 1+1 bằng mấy?">
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col"><input type="text" id="opt-0" class="form-control" placeholder="Đáp án A"></div>
+                                <div class="col"><input type="text" id="opt-1" class="form-control" placeholder="Đáp án B"></div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Đáp án đúng (0 cho A, 1 cho B...)</label>
+                                <input type="number" id="correct-idx" class="form-control" min="0" max="1">
+                            </div>
+                            <button onclick="saveQuestion()" class="btn btn-success">Lưu câu hỏi</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
+
+<script>
+    // 1. DÁN CONFIG CỦA BẠN VÀO ĐÂY
+    const firebaseConfig = {
+        apiKey: "AIzaSyBZngQdNGeFNbxz35hdZKuWxqxIxJVKaAA",
+  authDomain: "quizapp-f4f00.firebaseapp.com",
+  projectId: "quizapp-f4f00",
+  storageBucket: "quizapp-f4f00.firebasestorage.app",
+  messagingSenderId: "852224211635",
+  appId: "1:852224211635:web:ef5efe4e2ed092a4960ec6"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // 2. Logic Đăng nhập
+    function login() {
+        const email = document.getElementById('admin-email').value;
+        const pass = document.getElementById('admin-password').value;
+        auth.signInWithEmailAndPassword(email, pass)
+            .then(() => {
+                document.getElementById('login-section').classList.add('hidden');
+                document.getElementById('dashboard-section').classList.remove('hidden');
+                loadScores();
+            })
+            .catch(err => alert("Lỗi: " + err.message));
+    }
+
+    // 3. Chuyển đổi giữa các tab
+    function showTab(tabName) {
+        document.getElementById('tab-scores').classList.toggle('hidden', tabName !== 'scores');
+        document.getElementById('tab-create-quiz').classList.toggle('hidden', tabName !== 'create-quiz');
+    }
+
+    // 4. Lấy điểm từ Firebase
+    function loadScores() {
+        db.collection("results").orderBy("time", "desc").onSnapshot(snapshot => {
+            const tbody = document.getElementById('score-table-body');
+            tbody.innerHTML = '';
+            snapshot.forEach(doc => {
                 const data = doc.data();
-                table.innerHTML += `<tr><td>${data.name}</td><td>${data.class}</td><td>${data.score}</td></tr>`;
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${data.name}</strong></td>
+                        <td>${data.class}</td>
+                        <td><span class="badge bg-success">${data.score} điểm</span></td>
+                        <td><small class="text-muted">Đúng: ${data.score}, Sai: ${data.wrongAnswers || 0}</small></td>
+                        <td>${data.time ? data.time.toDate().toLocaleString() : ''}</td>
+                    </tr>`;
             });
         });
-    </script>
+    }
+
+    // 5. Lưu đề thi mới vào Firebase
+    function saveQuestion() {
+        const q = document.getElementById('new-q').value;
+        const opts = [document.getElementById('opt-0').value, document.getElementById('opt-1').value];
+        const correct = parseInt(document.getElementById('correct-idx').value);
+
+        db.collection("questions").add({
+            q: q,
+            a: opts,
+            correct: correct,
+            createdAt: new Date()
+        }).then(() => {
+            alert("Đã thêm câu hỏi thành công!");
+            document.getElementById('new-q').value = '';
+        });
+    }
+</script>
 </body>
 </html>
