@@ -10,13 +10,14 @@
     <style>
         :root { --dark: #2c3e50; --light: #f8f9fa; }
         body { background: var(--light); font-family: 'Segoe UI', sans-serif; }
-        .sidebar { background: var(--dark); min-height: 100vh; color: white; padding: 20px; position: fixed; width: 250px; }
+        .sidebar { background: var(--dark); min-height: 100vh; color: white; padding: 20px; position: fixed; width: 250px; z-index: 100; }
         .main-content { margin-left: 250px; padding: 30px; }
         .card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .hidden { display: none; }
-        .nav-link { color: #bdc3c7; cursor: pointer; padding: 10px; border-radius: 8px; transition: 0.3s; }
+        .nav-link { color: #bdc3c7; cursor: pointer; padding: 10px; border-radius: 8px; transition: 0.3s; margin-bottom: 5px; }
         .nav-link:hover, .nav-link.active { background: #34495e; color: white; }
-        #file-preview { background: #fff; border: 1px dashed #dee2e6; padding: 15px; max-height: 250px; overflow-y: auto; font-size: 13px; color: #666; }
+        #file-preview { background: #fff; border: 1px dashed #dee2e6; padding: 15px; max-height: 300px; overflow-y: auto; font-size: 13px; color: #666; border-radius: 8px; }
+        .success-msg { color: #27ae60; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -38,8 +39,8 @@
         <p class="small text-muted">Kỹ sư & Nhà thiết kế</p>
         <hr>
         <div class="nav flex-column">
-            <div class="nav-link active" onclick="switchTab('tab-scores')">Bảng điểm học sinh</div>
-            <div class="nav-link" onclick="switchTab('tab-upload')">Tải đề từ file (Word/PDF)</div>
+            <div class="nav-link active" id="link-scores" onclick="switchTab('tab-scores')">Bảng điểm học sinh</div>
+            <div class="nav-link" id="link-upload" onclick="switchTab('tab-upload')">Tải đề từ file (Word)</div>
             <div class="nav-link text-danger mt-5" onclick="location.reload()">Đăng xuất</div>
         </div>
     </div>
@@ -63,12 +64,17 @@
         </div>
 
         <div id="tab-upload" class="tab-content hidden">
-            <h3 class="mb-4">Nhập đề thi tự động</h3>
-            <div class="card p-4 text-center">
-                <p>Hệ thống tự động tách câu hỏi theo định dạng: <b>Câu 1: ... A. ... B. ...</b></p>
+            <h3 class="mb-4">Nhập đề thi tự động (.docx)</h3>
+            <div class="card p-4">
+                <div class="alert alert-info">
+                    <b>Quy tắc soạn thảo:</b><br>
+                    - Câu hỏi bắt đầu bằng: <b>Câu 1:</b>, <b>Câu 2:</b>...<br>
+                    - Các đáp án bắt đầu bằng: <b>A.</b>, <b>B.</b>, <b>C.</b>, <b>D.</b><br>
+                    - Đáp án nào <b>BÔI ĐẬM</b> sẽ được hệ thống chọn là đáp án đúng.
+                </div>
                 <div class="input-group mb-3">
-                    <input type="file" id="file-picker" class="form-control" accept=".docx, .pdf">
-                    <button class="btn btn-success" onclick="startProcessFile()">Xử lý & Tải lên</button>
+                    <input type="file" id="file-picker" class="form-control" accept=".docx">
+                    <button class="btn btn-success" onclick="processWordFile()">Xử lý & Tải lên</button>
                 </div>
                 <div id="file-preview">Chưa có dữ liệu xử lý...</div>
             </div>
@@ -83,7 +89,7 @@
 <script>
     // --- 1. CẤU HÌNH FIREBASE ---
     const firebaseConfig = {
-        apiKey: "AIzaSyBZngQdNGeFNbxz35hdZKuWxqxIxJVKaAA",
+       apiKey: "AIzaSyBZngQdNGeFNbxz35hdZKuWxqxIxJVKaAA",
   authDomain: "quizapp-f4f00.firebaseapp.com",
   projectId: "quizapp-f4f00",
   storageBucket: "quizapp-f4f00.firebasestorage.app",
@@ -93,9 +99,8 @@
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-    // --- 2. QUẢN LÝ GIAO DIỆN ---
+    // --- 2. LOGIC ĐĂNG NHẬP & CHUYỂN TAB ---
     function handleLogin() {
         const e = document.getElementById('email').value;
         const p = document.getElementById('password').value;
@@ -104,81 +109,90 @@
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('admin-dashboard').classList.remove('hidden');
                 loadScores();
-            }).catch(err => alert("Lỗi đăng nhập: " + err.message));
+            }).catch(err => alert("Lỗi: " + err.message));
     }
 
     function switchTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
         document.getElementById(tabId).classList.remove('hidden');
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-        event.target.classList.add('active');
+        if(tabId === 'tab-scores') document.getElementById('link-scores').classList.add('active');
+        if(tabId === 'tab-upload') document.getElementById('link-upload').classList.add('active');
     }
 
-    // --- 3. TẢI ĐIỂM HỌC SINH ---
     function loadScores() {
         db.collection("results").orderBy("time", "desc").onSnapshot(snap => {
             const list = document.getElementById('score-list');
             list.innerHTML = '';
             snap.forEach(doc => {
                 const d = doc.data();
-                list.innerHTML += `<tr>
-                    <td><b>${d.name}</b></td>
-                    <td>${d.class}</td>
-                    <td><span class="badge bg-primary fs-6">${d.score}đ</span></td>
-                    <td>${d.time ? d.time.toDate().toLocaleString() : ''}</td>
-                </tr>`;
+                list.innerHTML += `<tr><td><b>${d.name}</b></td><td>${d.class}</td><td><span class="badge bg-primary">${d.score}/${d.total || '?'}</span></td><td>${d.time ? d.time.toDate().toLocaleString() : ''}</td></tr>`;
             });
         });
     }
 
-    // --- 4. XỬ LÝ FILE (WORD/PDF) ---
-    async function startProcessFile() {
+    // --- 3. XỬ LÝ FILE WORD (BÔI ĐẬM = ĐÚNG) ---
+    async function processWordFile() {
         const file = document.getElementById('file-picker').files[0];
-        if(!file) return alert("Chọn file đã bạn!");
+        if(!file) return alert("Vui lòng chọn file .docx");
+        
         const preview = document.getElementById('file-preview');
-        preview.innerText = "Đang quét dữ liệu...";
+        preview.innerHTML = "Đang phân tích định dạng bôi đậm...";
 
-        if(file.name.endsWith('.docx')) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                mammoth.extractRawText({arrayBuffer: e.target.result})
-                    .then(res => parseToFirebase(res.value));
-            };
-            reader.readAsArrayBuffer(file);
-        } else if(file.name.endsWith('.pdf')) {
-            const reader = new FileReader();
-            reader.onload = async function() {
-                const pdf = await pdfjsLib.getDocument({data: new Uint8Array(this.result)}).promise;
-                let text = "";
-                for(let i=1; i<=pdf.numPages; i++) {
-                    const page = await pdf.getPage(i);
-                    const content = await page.getTextContent();
-                    text += content.items.map(s => s.str).join(" ") + "\n";
-                }
-                parseToFirebase(text);
-            };
-            reader.readAsArrayBuffer(file);
-        }
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const arrayBuffer = e.target.result;
+            // Chuyển Word sang HTML để giữ thẻ <strong> hoặc <b>
+            mammoth.convertToHtml({arrayBuffer: arrayBuffer})
+                .then(function(result) {
+                    const html = result.value; 
+                    parseHtmlToQuestions(html);
+                })
+                .catch(function(err) {
+                    alert("Lỗi đọc file: " + err);
+                });
+        };
+        reader.readAsArrayBuffer(file);
     }
 
-    function parseToFirebase(rawText) {
-        // Tách câu hỏi dựa trên từ khóa "Câu X:"
-        const blocks = rawText.split(/Câu \d+[:.]/g).filter(b => b.trim().length > 10);
+    function parseHtmlToQuestions(htmlContent) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = htmlContent;
+        
+        // Tách câu hỏi dựa trên "Câu X:"
+        const rawText = tempDiv.innerText;
+        const questionBlocks = rawText.split(/Câu \d+[:.]/g).filter(b => b.trim().length > 10);
         let count = 0;
 
-        blocks.forEach(block => {
+        questionBlocks.forEach((block) => {
             const parts = block.split(/[A-D][.:]/g);
             if(parts.length >= 5) {
+                const questionText = parts[0].trim();
+                const answers = [parts[1].trim(), parts[2].trim(), parts[3].trim(), parts[4].trim()];
+                let correctIdx = 0;
+
+                // Kiểm tra xem đáp án nào nằm trong thẻ <strong> hoặc <b> trong HTML gốc
+                answers.forEach((ans, idx) => {
+                    if (htmlContent.includes(`<strong>${ans}</strong>`) || 
+                        htmlContent.includes(`<b>${ans}</b>`) ||
+                        htmlContent.includes(`<strong> ${ans}</strong>`) ||
+                        htmlContent.includes(`<strong>${ans} </strong>`)) {
+                        correctIdx = idx;
+                    }
+                });
+
+                // Đẩy lên Firebase
                 db.collection("questions").add({
-                    q: parts[0].trim(),
-                    a: [parts[1].trim(), parts[2].trim(), parts[3].trim(), parts[4].trim()],
-                    correct: 0, // Mặc định A đúng
+                    q: questionText,
+                    a: answers,
+                    correct: correctIdx,
                     createdAt: new Date()
                 });
                 count++;
             }
         });
-        document.getElementById('file-preview').innerText = `Thành công! Đã thêm ${count} câu hỏi vào đề thi.`;
+
+        document.getElementById('file-preview').innerHTML = `<span class="success-msg">Thành công! Đã tải lên ${count} câu hỏi dựa trên đáp án bôi đậm.</span>`;
     }
 </script>
 </body>
