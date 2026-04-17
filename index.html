@@ -2,39 +2,66 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Hệ thống Thi Trắc Nghiệm</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống Thi Trắc Nghiệm - SmartQuiz</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { font-family: sans-serif; background: #f4f4f4; padding: 20px; }
-        .card { background: white; padding: 20px; border-radius: 8px; max-width: 600px; margin: auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        body { background: #f0f2f5; font-family: 'Segoe UI', sans-serif; }
+        .quiz-container { max-width: 700px; margin: 50px auto; }
+        .card { border: none; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .option-btn { width: 100%; text-align: left; margin-bottom: 10px; padding: 15px; border: 1px solid #dee2e6; border-radius: 10px; background: #fff; transition: 0.3s; }
+        .option-btn:hover:not([disabled]) { background: #e9ecef; border-color: #3498db; }
+        .correct { background: #27ae60 !important; color: white; border-color: #27ae60; }
+        .wrong { background: #e74c3c !important; color: white; border-color: #e74c3c; }
         .hidden { display: none; }
-        .option { display: block; width: 100%; padding: 10px; margin: 5px 0; cursor: pointer; border: 1px solid #ddd; text-align: left; border-radius: 5px; }
-        .correct { background: #27ae60; color: white; }
-        .wrong { background: #e74c3c; color: white; }
+        #timer { font-size: 1.2rem; font-weight: bold; color: #e74c3c; }
     </style>
 </head>
 <body>
 
-<div class="card" id="auth-section">
-    <h2>Thông tin học sinh</h2>
-    <input type="text" id="name" placeholder="Họ và tên" style="width:90%; padding:10px; margin-bottom:10px;">
-    <input type="text" id="class" placeholder="Lớp" style="width:90%; padding:10px; margin-bottom:10px;">
-    <button onclick="startQuiz()" style="width:100%; padding:10px; background:#3498db; color:white; border:none;">Bắt đầu thi</button>
-</div>
-
-<div class="card hidden" id="quiz-section">
-    <div id="timer" style="color:red; font-weight:bold; text-align:right;"></div>
-    <div id="question-container">
-        <p id="question-text"></p>
-        <div id="options-container"></div>
+<div class="container quiz-container">
+    <div id="auth-screen" class="card p-4">
+        <h2 class="text-center mb-4">Thông tin Thí sinh</h2>
+        <div class="mb-3">
+            <input type="text" id="student-name" class="form-control form-control-lg" placeholder="Nhập Họ và Tên">
+        </div>
+        <div class="mb-3">
+            <input type="text" id="student-class" class="form-control form-control-lg" placeholder="Nhập Lớp (VD: 5A1)">
+        </div>
+        <button id="btn-start" onclick="startQuiz()" class="btn btn-primary btn-lg w-100" disabled>
+            Đang tải đề thi...
+        </button>
     </div>
-    <p id="feedback"></p>
+
+    <div id="quiz-screen" class="card p-4 hidden">
+        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+            <div><b id="display-name"></b> - <span id="display-class"></span></div>
+            <div id="timer">15:00</div>
+        </div>
+        
+        <div id="question-box">
+            <h4 id="question-text" class="mb-4"></h4>
+            <div id="options-box"></div>
+        </div>
+
+        <div class="mt-4 text-center text-muted">
+            Câu hỏi: <span id="current-idx">1</span> / <span id="total-idx">0</span>
+        </div>
+    </div>
+
+    <div id="result-screen" class="card p-5 text-center hidden">
+        <h1 class="display-4">Hoàn thành!</h1>
+        <p class="lead">Số điểm của bạn là:</p>
+        <h2 class="display-2 text-primary" id="final-score">0</h2>
+        <button onclick="location.reload()" class="btn btn-outline-secondary mt-4">Thoát</button>
+    </div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
 
 <script>
-    // --- CẤU HÌNH FIREBASE ---
+    // --- 1. CẤU HÌNH FIREBASE (Dán của bạn vào đây) ---
     const firebaseConfig = {
         apiKey: "AIzaSyBZngQdNGeFNbxz35hdZKuWxqxIxJVKaAA",
   authDomain: "quizapp-f4f00.firebaseapp.com",
@@ -46,58 +73,119 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
+    // --- 2. BIẾN TOÀN CỤC ---
+    let questions = [];
+    let currentQuestionIndex = 0;
     let score = 0;
-    const questions = [
-        { q: "HTML là viết tắt của gì?", a: ["HyperText Markup Language", "High Tech Modern Language"], correct: 0 },
-        { q: "2 + 2 bằng mấy?", a: ["3", "4", "5"], correct: 1 }
-    ];
+    let timerInterval;
 
-    function startQuiz() {
-        if(!document.getElementById('name').value) return alert("Nhập tên bạn ơi!");
-        document.getElementById('auth-section').classList.add('hidden');
-        document.getElementById('quiz-section').classList.remove('hidden');
-        loadQuestion(0);
-    }
-
-    function loadQuestion(index) {
-        if(index >= questions.length) {
-            submitFinalScore();
+    // --- 3. TẢI ĐỀ THI TỪ FIREBASE NGAY KHI MỞ TRANG ---
+    db.collection("questions").orderBy("createdAt", "desc").get().then(snap => {
+        if (snap.empty) {
+            alert("Chưa có đề thi nào trên hệ thống!");
             return;
         }
-        const item = questions[index];
-        document.getElementById('question-text').innerText = item.q;
-        const container = document.getElementById('options-container');
-        container.innerHTML = '';
-        item.a.forEach((opt, i) => {
+        questions = snap.docs.map(doc => doc.data());
+        document.getElementById('total-idx').innerText = questions.length;
+        
+        // Kích hoạt nút bắt đầu
+        const btnStart = document.getElementById('btn-start');
+        btnStart.innerText = "Bắt đầu làm bài";
+        btnStart.disabled = false;
+    }).catch(err => alert("Lỗi tải đề: " + err.message));
+
+    // --- 4. LOGIC TRÒ CHƠI ---
+    function startQuiz() {
+        const name = document.getElementById('student-name').value;
+        const clazz = document.getElementById('student-class').value;
+
+        if (!name || !clazz) return alert("Vui lòng điền đủ thông tin!");
+
+        document.getElementById('display-name').innerText = name;
+        document.getElementById('display-class').innerText = clazz;
+        document.getElementById('auth-screen').classList.add('hidden');
+        document.getElementById('quiz-screen').classList.remove('hidden');
+
+        loadQuestion();
+        startTimer(15); // Thời gian 15 phút
+    }
+
+    function loadQuestion() {
+        const qData = questions[currentQuestionIndex];
+        document.getElementById('question-text').innerText = `Câu ${currentQuestionIndex + 1}: ${qData.q}`;
+        document.getElementById('current-idx').innerText = currentQuestionIndex + 1;
+
+        const optionsBox = document.getElementById('options-box');
+        optionsBox.innerHTML = '';
+
+        qData.a.forEach((opt, index) => {
             const btn = document.createElement('button');
+            btn.className = 'option-btn';
             btn.innerText = opt;
-            btn.className = 'option';
-            btn.onclick = () => {
-                if(i === item.correct) {
-                    btn.classList.add('correct');
-                    score++;
-                } else {
-                    btn.classList.add('wrong');
-                }
-                setTimeout(() => loadQuestion(index + 1), 1000);
-            };
-            container.appendChild(btn);
+            btn.onclick = () => checkAnswer(btn, index, qData.correct);
+            optionsBox.appendChild(btn);
         });
     }
 
-    function submitFinalScore() {
-        const name = document.getElementById('name').value;
-        const clazz = document.getElementById('class').value;
+    function checkAnswer(selectedBtn, selectedIdx, correctIdx) {
+        // Khóa tất cả các nút
+        const allBtns = document.querySelectorAll('.option-btn');
+        allBtns.forEach(b => b.disabled = true);
+
+        if (selectedIdx === correctIdx) {
+            selectedBtn.classList.add('correct');
+            score++;
+        } else {
+            selectedBtn.classList.add('wrong');
+            // Hiện đáp án đúng cho học sinh thấy
+            allBtns[correctIdx].classList.add('correct');
+        }
+
+        // Chờ 1.5 giây rồi qua câu tiếp theo
+        setTimeout(() => {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < questions.length) {
+                loadQuestion();
+            } else {
+                finishQuiz();
+            }
+        }, 1500);
+    }
+
+    function startTimer(minutes) {
+        let time = minutes * 60;
+        const timerEl = document.getElementById('timer');
+        timerInterval = setInterval(() => {
+            let mins = Math.floor(time / 60);
+            let secs = time % 60;
+            timerEl.innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+            if (time <= 0) {
+                clearInterval(timerInterval);
+                finishQuiz();
+            }
+            time--;
+        }, 1000);
+    }
+
+    function finishQuiz() {
+        clearInterval(timerInterval);
+        document.getElementById('quiz-screen').classList.add('hidden');
+        document.getElementById('result-screen').classList.remove('hidden');
+        document.getElementById('final-score').innerText = score;
+
+        // Gửi điểm lên Firebase
+        const name = document.getElementById('student-name').value;
+        const clazz = document.getElementById('student-class').value;
+
         db.collection("results").add({
             name: name,
             class: clazz,
             score: score,
+            total: questions.length,
             time: new Date()
-        }).then(() => {
-            alert("Xong! Điểm của bạn: " + score);
-            location.reload();
         });
     }
 </script>
+
 </body>
 </html>
