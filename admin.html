@@ -7,7 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.21/mammoth.browser.min.js"></script>
     <style>
-        :root { --dark: #2c3e50; --light: #f8f9fa; --primary: #3498db; }
+        :root { --dark: #2c3e50; --light: #f8f9fa; }
         body { background: var(--light); font-family: 'Segoe UI', sans-serif; }
         .sidebar { background: var(--dark); min-height: 100vh; color: white; padding: 20px; position: fixed; width: 250px; z-index: 100; }
         .main-content { margin-left: 250px; padding: 30px; }
@@ -15,10 +15,10 @@
         .hidden { display: none; }
         .nav-link { color: #bdc3c7; cursor: pointer; padding: 12px; border-radius: 8px; transition: 0.3s; margin-bottom: 5px; }
         .nav-link:hover, .nav-link.active { background: #34495e; color: white; }
-        .status-badge { padding: 5px 10px; border-radius: 20px; font-size: 0.8rem; }
+        .status-badge { padding: 5px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
         .bg-active { background: #d4edda; color: #155724; }
         .bg-stopped { background: #f8d7da; color: #721c24; }
-        #file-preview-log { font-size: 13px; color: #555; max-height: 200px; overflow-y: auto; background: #eee; padding: 10px; border-radius: 5px; }
+        #file-log { font-size: 13px; max-height: 150px; overflow-y: auto; background: #eee; padding: 10px; border-radius: 8px; }
     </style>
 </head>
 <body>
@@ -73,18 +73,20 @@
         </div>
 
         <div id="tab-upload" class="tab-content hidden">
-            <h3 class="mb-4">Tải đề thi từ file Word</h3>
+            <h3 class="mb-4">Tải đề thi mới</h3>
             <div class="card p-4">
-                <div class="alert alert-warning small">
-                    <b>Lưu ý định dạng:</b> Mỗi câu bắt đầu bằng "Câu X:", mỗi đáp án một dòng (A. B. C. D.). 
-                    Đáp án nào <b>Bôi đậm</b> sẽ được hệ thống chọn là đáp án đúng.
+                <div class="alert alert-info">
+                    <b>Cấu trúc file Word chuẩn:</b><br>
+                    1. Phần Đề bài: Câu 1, Câu 2... (A. B. C. D.)<br>
+                    2. Ghi chữ <b>Hết</b> ở cuối phần câu hỏi.<br>
+                    3. Phần Đáp án (Dưới chữ Hết): Ghi dạng <b>1.A, 2.B, 3.C...</b>
                 </div>
-                <input type="text" id="exam-name" class="form-control mb-3" placeholder="Tên đề thi (VD: Kiểm tra cuối kỳ)">
+                <input type="text" id="exam-name" class="form-control mb-3" placeholder="Nhập tên đề thi">
                 <div class="input-group mb-3">
                     <input type="file" id="file-picker" class="form-control" accept=".docx">
-                    <button class="btn btn-success" onclick="processWordFile()">Xử lý & Tải lên</button>
+                    <button class="btn btn-success" onclick="processWordFile()">Xử lý & Lưu đề</button>
                 </div>
-                <div id="file-preview-log">Chờ xử lý file...</div>
+                <div id="file-log">Chờ file...</div>
             </div>
         </div>
     </div>
@@ -95,29 +97,27 @@
 <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
 
 <script>
-    // --- 1. CẤU HÌNH FIREBASE (THAY THÔNG TIN CỦA BẠN TẠI ĐÂY) ---
+    // --- 1. CONFIG FIREBASE ---
     const firebaseConfig = {
-        apiKey: "AIzaSy...",
-        authDomain: "your-app.firebaseapp.com",
-        projectId: "your-app",
-        storageBucket: "your-app.appspot.com",
-        messagingSenderId: "...",
-        appId: "..."
+       apiKey: "AIzaSyBZngQdNGeFNbxz35hdZKuWxqxIxJVKaAA",
+  authDomain: "quizapp-f4f00.firebaseapp.com",
+  projectId: "quizapp-f4f00",
+  storageBucket: "quizapp-f4f00.firebasestorage.app",
+  messagingSenderId: "852224211635",
+  appId: "1:852224211635:web:ef5efe4e2ed092a4960ec6"
     };
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    // --- 2. QUẢN LÝ ĐĂNG NHẬP & TAB ---
+    // --- 2. LOGIN & TABS ---
     function handleLogin() {
-        const e = document.getElementById('email').value;
-        const p = document.getElementById('password').value;
-        auth.signInWithEmailAndPassword(e, p).then(() => {
-            document.getElementById('login-screen').classList.add('hidden');
-            document.getElementById('admin-dashboard').classList.remove('hidden');
-            loadScores();
-            loadExams();
-        }).catch(err => alert("Sai thông tin: " + err.message));
+        auth.signInWithEmailAndPassword(document.getElementById('email').value, document.getElementById('password').value)
+            .then(() => {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('admin-dashboard').classList.remove('hidden');
+                loadScores(); loadExams();
+            }).catch(err => alert("Lỗi: " + err.message));
     }
 
     function switchTab(tabId) {
@@ -129,24 +129,20 @@
         if(tabId === 'tab-upload') document.getElementById('btn-upload').classList.add('active');
     }
 
-    // --- 3. QUẢN LÝ ĐỀ THI (THÊM/XOÁ/SỬA TRẠNG THÁI) ---
+    // --- 3. QUẢN LÝ ĐỀ THI ---
     function loadExams() {
         db.collection("exams").orderBy("createdAt", "desc").onSnapshot(snap => {
             const list = document.getElementById('exam-list');
             list.innerHTML = '';
             snap.forEach(doc => {
                 const ex = doc.data();
-                const statusClass = ex.isActive ? 'bg-active' : 'bg-stopped';
-                const statusText = ex.isActive ? 'Đang mở' : 'Đã đóng';
                 list.innerHTML += `
                 <tr>
                     <td><b>${ex.name}</b></td>
                     <td>${ex.createdAt.toDate().toLocaleDateString()}</td>
-                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                    <td><span class="status-badge ${ex.isActive ? 'bg-active' : 'bg-stopped'}">${ex.isActive ? 'Đang mở' : 'Đang dừng'}</span></td>
                     <td>
-                        <button class="btn btn-sm ${ex.isActive ? 'btn-warning' : 'btn-success'}" onclick="toggleExamStatus('${doc.id}', ${!ex.isActive})">
-                            ${ex.isActive ? 'Dừng' : 'Mở thi'}
-                        </button>
+                        <button class="btn btn-sm ${ex.isActive ? 'btn-warning' : 'btn-success'}" onclick="toggleStatus('${doc.id}', ${!ex.isActive})">${ex.isActive ? 'Dừng' : 'Mở thi'}</button>
                         <button class="btn btn-sm btn-danger" onclick="deleteExam('${doc.id}')">Xoá</button>
                     </td>
                 </tr>`;
@@ -154,90 +150,80 @@
         });
     }
 
-    async function toggleExamStatus(id, newStatus) {
-        if(newStatus) { // Nếu mở đề này, tắt tất cả đề khác
-            const batch = db.batch();
+    async function toggleStatus(id, status) {
+        if(status) { // Tắt các đề khác khi mở 1 đề
             const activeExams = await db.collection("exams").where("isActive", "==", true).get();
-            activeExams.forEach(doc => batch.update(doc.ref, {isActive: false}));
+            const batch = db.batch();
+            activeExams.forEach(d => batch.update(d.ref, {isActive: false}));
             await batch.commit();
         }
-        db.collection("exams").doc(id).update({isActive: newStatus});
+        db.collection("exams").doc(id).update({isActive: status});
     }
 
     async function deleteExam(id) {
-        if(!confirm("Xoá đề này sẽ xoá sạch câu hỏi và bảng điểm liên quan. Chắc chắn?")) return;
-        // Xoá câu hỏi thuộc đề
+        if(!confirm("Xoá đề sẽ xoá toàn bộ câu hỏi liên quan. Bạn chắc chắn?")) return;
         const qs = await db.collection("questions").where("examId", "==", id).get();
         qs.forEach(q => q.ref.delete());
-        // Xoá đề
         db.collection("exams").doc(id).delete();
     }
 
-    // --- 4. XỬ LÝ FILE WORD (NHẬN DIỆN BÔI ĐẬM CHUẨN) ---
+    // --- 4. XỬ LÝ FILE WORD (DỰA TRÊN CHỮ "HẾT" & BẢNG ĐÁP ÁN) ---
     async function processWordFile() {
         const examName = document.getElementById('exam-name').value;
-        const fileInput = document.getElementById('file-picker');
-        if(!examName || !fileInput.files[0]) return alert("Vui lòng điền tên đề và chọn file!");
+        const file = document.getElementById('file-picker').files[0];
+        if(!examName || !file) return alert("Vui lòng nhập tên đề và chọn file!");
 
-        const log = document.getElementById('file-preview-log');
-        log.innerHTML = "Đang phân tích dữ liệu...";
+        const log = document.getElementById('file-log');
+        log.innerHTML = "Đang đọc file và tách đáp án...";
 
         const reader = new FileReader();
         reader.onload = async (e) => {
-            mammoth.convertToHtml({arrayBuffer: e.target.result}).then(async result => {
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = result.value;
-                const paragraphs = Array.from(tempDiv.querySelectorAll('p'));
+            mammoth.extractRawText({arrayBuffer: e.target.result}).then(async result => {
+                const rawText = result.value;
+                
+                // Tách Đề và Đáp án qua chữ "Hết"
+                const parts = rawText.split(/Hết/i);
+                if(parts.length < 2) return alert("Không tìm thấy chữ 'Hết' trong file!");
 
-                // 1. Tạo bản ghi Đề thi
+                const deSection = parts[0];
+                const daSection = parts[1];
+
+                // Xây dựng bản đồ đáp án (VD: 1.A -> {1: 0})
+                const answerMap = {};
+                const matches = daSection.matchAll(/(\d+)[\.\s]*([A-D])/gi);
+                for (const match of matches) {
+                    answerMap[match[1]] = match[2].toUpperCase().charCodeAt(0) - 65;
+                }
+
+                // Tách câu hỏi
+                const blocks = deSection.split(/Câu \d+[:.]/g).filter(b => b.trim().length > 10);
+                
                 const examDoc = await db.collection("exams").add({
                     name: examName,
                     createdAt: new Date(),
                     isActive: false
                 });
 
-                let currentQ = null, currentOpts = [], correctIdx = -1;
-                let qCount = 0;
-
-                paragraphs.forEach(p => {
-                    const text = p.innerText.trim();
-                    const html = p.innerHTML;
-
-                    if (/^Câu \d+[:.]/i.test(text)) {
-                        saveQuestion(currentQ, currentOpts, correctIdx, examDoc.id);
-                        currentQ = text.replace(/^Câu \d+[:.]/i, '').trim();
-                        currentOpts = []; correctIdx = -1;
-                    } 
-                    else if (/^[A-D][.:]/i.test(text)) {
-                        const optText = text.replace(/^[A-D][.:]/i, '').trim();
-                        currentOpts.push(optText);
-                        // Kiểm tra bôi đậm
-                        if (html.includes('<strong>') || html.includes('<b>')) {
-                            correctIdx = currentOpts.length - 1;
-                        }
+                blocks.forEach((block, index) => {
+                    const qNum = index + 1;
+                    const lines = block.split(/[A-D][.:]/g);
+                    if(lines.length >= 5) {
+                        db.collection("questions").add({
+                            examId: examDoc.id,
+                            q: lines[0].trim(),
+                            a: [lines[1].trim(), lines[2].trim(), lines[3].trim(), lines[4].trim()],
+                            correct: (answerMap[qNum] !== undefined) ? answerMap[qNum] : 0,
+                            createdAt: new Date()
+                        });
                     }
                 });
-                // Lưu câu cuối
-                saveQuestion(currentQ, currentOpts, correctIdx, examDoc.id);
-                
-                log.innerHTML = `<span class="text-success">Hoàn thành! Đã tải lên thành công.</span>`;
-                alert("Đã tải đề lên hệ thống!");
+
+                log.innerHTML = `<b class="text-success">Thành công! Đã tải lên ${blocks.length} câu hỏi.</b>`;
+                alert("Đã lưu đề thi thành công!");
                 switchTab('tab-exams');
             });
         };
-        reader.readAsArrayBuffer(fileInput.files[0]);
-    }
-
-    function saveQuestion(q, opts, correct, examId) {
-        if (q && opts.length >= 2) {
-            db.collection("questions").add({
-                examId: examId,
-                q: q,
-                a: opts,
-                correct: correct === -1 ? 0 : correct, // Mặc định A nếu không bôi đậm
-                createdAt: new Date()
-            });
-        }
+        reader.readAsArrayBuffer(file);
     }
 
     function loadScores() {
@@ -246,7 +232,7 @@
             list.innerHTML = '';
             snap.forEach(doc => {
                 const d = doc.data();
-                list.innerHTML += `<tr><td>${d.name}</td><td>${d.class}</td><td>${d.examName || 'N/A'}</td><td><b>${d.score}/${d.total}</b></td><td>${d.time.toDate().toLocaleString()}</td></tr>`;
+                list.innerHTML += `<tr><td>${d.name}</td><td>${d.class}</td><td>${d.examName || ''}</td><td><b>${d.score}/${d.total}</b></td><td>${d.time.toDate().toLocaleString()}</td></tr>`;
             });
         });
     }
