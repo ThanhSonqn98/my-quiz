@@ -2,44 +2,70 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>SmartQuiz Student - MultiFormat</title>
+    <title>SmartQuiz - Trải nghiệm thi đấu</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background: #f0f2f5; font-family: 'Segoe UI', sans-serif; }
-        .quiz-container { max-width: 700px; margin: 40px auto; }
-        .card { border-radius: 15px; border: none; box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
-        .option-btn { width: 100%; text-align: left; margin-bottom: 10px; padding: 15px; border: 1px solid #ddd; border-radius: 10px; background: #fff; }
-        .correct { background: #27ae60 !important; color: white; }
-        .wrong { background: #e74c3c !important; color: white; }
-        .drop-zone { border-bottom: 2px solid #3498db; color: #3498db; font-weight: bold; padding: 0 10px; min-width: 50px; display: inline-block; text-align: center; }
+        body { background: #f4f7f9; font-family: 'Segoe UI', sans-serif; }
+        .quiz-container { max-width: 750px; margin: 40px auto; }
+        .card { border-radius: 20px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
+        .option-btn { width: 100%; text-align: left; margin-bottom: 12px; padding: 16px; border: 1px solid #dee2e6; border-radius: 12px; background: #fff; transition: 0.2s; }
+        .option-btn:hover:not([disabled]) { background: #f0f7ff; border-color: #3498db; }
+        .correct { background: #27ae60 !important; color: white; border-color: #27ae60; }
+        .wrong { background: #e74c3c !important; color: white; border-color: #e74c3c; }
+        /* Style cho Kéo thả */
+        .drop-zone { border-bottom: 2px solid #3498db; color: #3498db; font-weight: bold; padding: 0 10px; min-width: 60px; display: inline-block; text-align: center; cursor: pointer; }
+        .word-pool { background: #f8f9fa; padding: 15px; border-radius: 12px; border: 1px dashed #cbd5e0; }
+        
+        .my-rank { background: #fff3cd !important; border: 2px solid #ffc107 !important; }
         .hidden { display: none; }
-        .my-rank { background: #fff3cd; }
+        #timer { font-size: 1.4rem; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="container quiz-container">
-    <div id="auth-screen" class="card p-4 text-center">
-        <h2>SmartQuiz 🚀</h2>
-        <div id="exam-status" class="alert alert-info mt-3">Đang tìm đề...</div>
+    <div id="auth-screen" class="card p-5 text-center">
+        <h2 class="fw-bold mb-4">SmartQuiz 🚀</h2>
+        <div id="exam-status" class="alert alert-primary">Đang kết nối máy chủ...</div>
         <div id="auth-form" class="hidden text-start">
-            <input type="text" id="name" class="form-control mb-3" placeholder="Họ tên">
-            <input type="text" id="class" class="form-control mb-3" placeholder="Lớp">
-            <button onclick="startQuiz()" class="btn btn-primary w-100 btn-lg">Bắt đầu thi</button>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Họ và Tên</label>
+                <input type="text" id="name" class="form-control form-control-lg" placeholder="Ví dụ: Trần Thị Bình">
+            </div>
+            <div class="mb-4">
+                <label class="form-label fw-bold">Lớp</label>
+                <input type="text" id="class" class="form-control form-control-lg" placeholder="Ví dụ: 5A2">
+            </div>
+            <button onclick="startQuiz()" class="btn btn-primary w-100 btn-lg shadow">Vào thi ngay</button>
         </div>
     </div>
 
     <div id="quiz-screen" class="card p-4 hidden">
-        <div class="d-flex justify-content-between mb-3"><span id="timer" class="text-danger fw-bold">15:00</span> <span id="idx-text"></span></div>
-        <div id="question-area"></div>
+        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+            <span id="timer" class="text-danger">15:00</span>
+            <span class="badge bg-secondary">Câu: <span id="current-idx">1</span> / <span id="total-idx">0</span></span>
+        </div>
+        <div id="question-content">
+            <h4 id="q-text" class="mb-4 fw-bold" style="line-height: 1.6;"></h4>
+            <div id="options-box"></div>
+        </div>
     </div>
 
     <div id="result-screen" class="card p-4 hidden">
-        <h2 class="text-center">Kết quả: <span id="final-score"></span>đ</h2>
-        <div class="table-responsive mt-4">
-            <table class="table"><tbody id="rank-list"></tbody></table>
+        <div class="text-center mb-4">
+            <h1 class="display-5 fw-bold">Kết quả: <span id="final-score">0</span>đ</h1>
+            <p class="text-muted" id="stat-detail">Đúng: 0 | Sai: 0</p>
         </div>
-        <button onclick="location.reload()" class="btn btn-secondary w-100">Thoát</button>
+        <h5 class="fw-bold mb-3 mt-4">🏆 Bảng Xếp Hạng Đề Thi</h5>
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead class="table-light">
+                    <tr><th>#</th><th>Học sinh</th><th>Đúng</th><th>Sai</th><th>Điểm</th></tr>
+                </thead>
+                <tbody id="rank-list"></tbody>
+            </table>
+        </div>
+        <button onclick="location.reload()" class="btn btn-outline-secondary w-100 mt-3">Thoát</button>
     </div>
 </div>
 
@@ -47,27 +73,27 @@
 <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
 
 <script>
-    const firebaseConfig = { apiKey: "AIzaSyBZngQdNGeFNbxz35hdZKuWxqxIxJVKaAA",
-  authDomain: "quizapp-f4f00.firebaseapp.com",
-  projectId: "quizapp-f4f00",
-  storageBucket: "quizapp-f4f00.firebasestorage.app",
-  messagingSenderId: "852224211635",
-  appId: "1:852224211635:web:ef5efe4e2ed092a4960ec6" };
+    // --- CẤU HÌNH FIREBASE ---
+    const firebaseConfig = { apiKey: "YOUR_API_KEY", authDomain: "...", projectId: "...", storageBucket: "...", messagingSenderId: "...", appId: "..." };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
     let activeEx = null, questions = [], curIdx = 0, score = 0, timer;
 
+    // --- LẤY ĐỀ THI ---
     db.collection("exams").where("isActive", "==", true).limit(1).onSnapshot(snap => {
-        if(snap.empty) return;
+        if(snap.empty) { document.getElementById('exam-status').innerText = "Hiện không có đề mở."; return; }
         activeEx = {id: snap.docs[0].id, ...snap.docs[0].data()};
         document.getElementById('exam-status').classList.add('hidden');
         document.getElementById('auth-form').classList.remove('hidden');
-        db.collection("questions").where("examId", "==", activeEx.id).get().then(q => questions = q.docs.map(d => d.data()));
+        db.collection("questions").where("examId", "==", activeEx.id).get().then(q => {
+            questions = q.docs.map(d => d.data());
+            document.getElementById('total-idx').innerText = questions.length;
+        });
     });
 
     function startQuiz() {
-        if(!document.getElementById('name').value) return;
+        if(!document.getElementById('name').value) return alert("Vui lòng nhập tên!");
         document.getElementById('auth-screen').classList.add('hidden');
         document.getElementById('quiz-screen').classList.remove('hidden');
         showQ(); startTimer(15);
@@ -75,46 +101,79 @@
 
     function showQ() {
         const q = questions[curIdx];
-        document.getElementById('idx-text').innerText = `Câu ${curIdx+1}/${questions.length}`;
-        const area = document.getElementById('question-area');
-        area.innerHTML = `<h4 class="mb-4">${q.q.replace(/\[\.\.\.\]/g, '<span class="drop-zone">...</span>')}</h4>`;
+        const box = document.getElementById('options-box');
+        box.innerHTML = '';
+        document.getElementById('current-idx').innerText = curIdx + 1;
 
-        if(q.type === "choice") {
+        if (q.type === "drag") {
+            // Hiển thị dạng Kéo thả (Click to fill)
+            let text = q.q.replace(/\[\.\.\.\]/g, '<span class="drop-zone" onclick="clearZone(this)">...</span>');
+            document.getElementById('q-text').innerHTML = text;
+            
+            let btnHtml = '<div class="word-pool mt-3 text-center">';
+            q.options.sort(() => Math.random() - 0.5).forEach(opt => {
+                btnHtml += `<button class="btn btn-outline-primary m-1 drag-word" onclick="fillZone(this)">${opt}</button>`;
+            });
+            btnHtml += '</div><button onclick="checkDrag()" class="btn btn-primary w-100 mt-4 btn-lg shadow-sm">Xác nhận đáp án</button>';
+            box.innerHTML = btnHtml;
+
+        } else if (q.type === "short") {
+            // Hiển thị dạng Trả lời ngắn
+            document.getElementById('q-text').innerText = `Câu ${curIdx+1}: ${q.q}`;
+            box.innerHTML = `
+                <input type="text" id="short-ans" class="form-control form-control-lg mb-3" placeholder="Nhập đáp án của bạn...">
+                <button onclick="checkShort()" class="btn btn-success w-100 btn-lg shadow-sm">Nộp bài</button>
+            `;
+        } else {
+            // Hiển thị Trắc nghiệm / Đúng Sai
+            document.getElementById('q-text').innerText = `Câu ${curIdx+1}: ${q.q}`;
             let opts = q.a.map((t, i) => ({t, is: i === q.correct}));
-            opts.sort(() => Math.random() - 0.5); // Random đáp án
+            opts.sort(() => Math.random() - 0.5);
             opts.forEach(o => {
-                const b = document.createElement('button'); b.className = 'option-btn'; b.innerText = o.t;
-                b.onclick = () => { 
+                const b = document.createElement('button');
+                b.className = 'option-btn';
+                b.innerText = o.t;
+                b.onclick = () => {
                     document.querySelectorAll('.option-btn').forEach(btn => btn.disabled = true);
                     if(o.is) { b.classList.add('correct'); score++; } else { b.classList.add('wrong'); }
                     next();
                 };
-                area.appendChild(b);
+                box.appendChild(b);
             });
-        } else if(q.type === "short") {
-            area.innerHTML += `<input type="text" id="short-ans" class="form-control mb-3" placeholder="Nhập đáp án...">
-                               <button onclick="checkShort()" class="btn btn-success w-100">Nộp</button>`;
-        } else if(q.type === "drag") {
-            let btnBox = '<div class="mt-3">';
-            q.options.forEach(o => btnBox += `<button class="btn btn-outline-primary m-1" onclick="fillDrag(this)">${o}</button>`);
-            area.innerHTML += btnBox + '</div><button onclick="checkDrag()" class="btn btn-success w-100 mt-3">Xác nhận</button>';
         }
     }
 
-    function fillDrag(btn) {
+    // --- LOGIC XỬ LÝ KÉO THẢ (CLICK TO FILL) ---
+    function fillZone(btn) {
         const zones = document.querySelectorAll('.drop-zone');
-        for(let z of zones) { if(z.innerText === "...") { z.innerText = btn.innerText; btn.disabled = true; break; } }
+        for (let z of zones) {
+            if (z.innerText === "...") {
+                z.innerText = btn.innerText;
+                btn.style.visibility = 'hidden';
+                break;
+            }
+        }
+    }
+
+    function clearZone(zone) {
+        if (zone.innerText === "...") return;
+        const btns = document.querySelectorAll('.drag-word');
+        btns.forEach(b => { if (b.innerText === zone.innerText) b.style.visibility = 'visible'; });
+        zone.innerText = "...";
     }
 
     function checkDrag() {
-        const ans = Array.from(document.querySelectorAll('.drop-zone')).map(z => z.innerText);
-        if(JSON.stringify(ans) === JSON.stringify(questions[curIdx].correctOrder)) score++;
+        const zones = document.querySelectorAll('.drop-zone');
+        const userAns = Array.from(zones).map(z => z.innerText);
+        const correct = questions[curIdx].correctOrder;
+        if (JSON.stringify(userAns) === JSON.stringify(correct)) score++;
         next();
     }
 
     function checkShort() {
         const val = document.getElementById('short-ans').value.trim().toLowerCase();
-        if(val === questions[curIdx].correctAns.toLowerCase()) score++;
+        const correct = questions[curIdx].correctAns.toLowerCase();
+        if (val === correct) score++;
         next();
     }
 
@@ -123,28 +182,34 @@
     function startTimer(m) {
         let s = m * 60;
         timer = setInterval(() => {
-            document.getElementById('timer').innerText = `${Math.floor(s/60)}:${s%60<10?'0':''}${s%60}`;
+            let mins = Math.floor(s/60), secs = s%60;
+            document.getElementById('timer').innerText = `${mins}:${secs<10?'0':''}${secs}`;
             if(s-- <= 0) { clearInterval(timer); finish(); }
         }, 1000);
     }
 
     function finish() {
         clearInterval(timer);
-        const g10 = ((score/questions.length)*10).toFixed(2);
+        const total = questions.length;
+        const g10 = ((score/total)*10).toFixed(2);
+        const studentName = document.getElementById('name').value;
         document.getElementById('quiz-screen').classList.add('hidden');
         document.getElementById('result-screen').classList.remove('hidden');
         document.getElementById('final-score').innerText = g10;
-        const name = document.getElementById('name').value;
-        db.collection("results").add({name, class: document.getElementById('class').value, examId: activeEx.id, score, wrong: questions.length-score, grade10: g10, time: new Date()})
-        .then(() => loadRank(activeEx.id, name));
+        document.getElementById('stat-detail').innerText = `Đúng: ${score} | Sai: ${total - score}`;
+
+        const res = { name: studentName, class: document.getElementById('class').value, examId: activeEx.id, score: score, wrong: total - score, grade10: g10, time: new Date() };
+        db.collection("results").add(res).then(() => loadRanking(activeEx.id, studentName));
     }
 
-    function loadRank(id, myName) {
-        db.collection("results").where("examId", "==", id).orderBy("score", "desc").orderBy("time", "asc").onSnapshot(snap => {
-            const list = document.getElementById('rank-list'); list.innerHTML = '';
-            snap.docs.forEach((d, i) => {
-                const data = d.data();
-                list.innerHTML += `<tr class="${data.name === myName?'my-rank':''}"><td>${i+1}</td><td>${data.name}</td><td>${data.grade10}đ</td></tr>`;
+    function loadRanking(exId, myName) {
+        db.collection("results").where("examId", "==", exId).orderBy("score", "desc").orderBy("time", "asc").onSnapshot(snap => {
+            const list = document.getElementById('rank-list');
+            list.innerHTML = '';
+            snap.docs.forEach((doc, i) => {
+                const d = doc.data();
+                const isMe = (d.name === myName);
+                list.innerHTML += `<tr class="${isMe ? 'my-rank fw-bold' : ''}"><td>${i+1}</td><td>${d.name} ${isMe ? '(Bạn)' : ''}</td><td class="text-success">${d.score}</td><td class="text-danger">${d.wrong || 0}</td><td><span class="badge bg-primary">${d.grade10}</span></td></tr>`;
             });
         });
     }
