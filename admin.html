@@ -7,104 +7,91 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.21/mammoth.browser.min.js"></script>
     <style>
-        :root { --dark: #2c3e50; --light: #f8f9fa; --primary: #3498db; }
-        body { background: var(--light); font-family: 'Segoe UI', sans-serif; }
-        .sidebar { background: var(--dark); min-height: 100vh; color: white; padding: 20px; position: fixed; width: 250px; z-index: 100; }
-        .main-content { margin-left: 250px; padding: 30px; }
-        .card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        :root { --dark: #1e293b; --primary: #3b82f6; --light: #f8fafc; }
+        body { background: var(--light); font-family: 'Inter', sans-serif; }
+        
+        .sidebar { background: var(--dark); height: 100vh; color: white; padding: 25px; position: fixed; width: 260px; z-index: 100; box-shadow: 4px 0 10px rgba(0,0,0,0.1); }
+        .sidebar h4 { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 40px; color: #fff; }
+        .main-content { margin-left: 260px; padding: 40px; }
+        
+        .card { border: none; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .hidden { display: none; }
-        .nav-link { color: #bdc3c7; cursor: pointer; padding: 12px; border-radius: 8px; transition: 0.3s; margin-bottom: 5px; }
-        .nav-link:hover, .nav-link.active { background: #34495e; color: white; }
-        .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
-        .bg-active { background: #d4edda; color: #155724; }
-        .bg-stopped { background: #f8d7da; color: #721c24; }
-        .table-ranking tr:nth-child(1) { background-color: #fff3cd; } /* Vàng cho hạng 1 */
-        #file-log { font-size: 13px; background: #eee; padding: 10px; border-radius: 8px; max-height: 150px; overflow-y: auto; }
+        
+        .nav-link { color: #94a3b8; font-weight: 500; padding: 12px 15px; border-radius: 8px; margin-bottom: 8px; transition: 0.2s; }
+        .nav-link:hover { background: rgba(255,255,255,0.05); color: #fff; }
+        .nav-link.active { background: var(--primary); color: white; }
+        
+        .status-badge { padding: 4px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; }
+        .bg-active { background: #dcfce7; color: #166534; }
+        .bg-stopped { background: #fee2e2; color: #991b1b; }
+        
+        .btn-success { background: var(--primary); border: none; }
+        .table thead { background: #f1f5f9; }
+        .table th { font-weight: 600; color: #475569; border: none; }
     </style>
 </head>
 <body>
 
 <div id="login-screen" class="container mt-5">
     <div class="row justify-content-center">
-        <div class="col-md-4 card p-4 text-center shadow">
-            <h3 class="mb-4">Giáo viên Đăng nhập</h3>
-            <input type="email" id="email" class="form-control mb-3" placeholder="Email quản trị">
-            <input type="password" id="password" class="form-control mb-3" placeholder="Mật khẩu">
-            <button onclick="handleLogin()" class="btn btn-primary w-100">Đăng nhập</button>
+        <div class="col-md-4 card p-5 text-center shadow-lg">
+            <h3 class="mb-4 fw-bold">Admin Login</h3>
+            <input type="email" id="email" class="form-control mb-3 py-2" placeholder="Email quản trị">
+            <input type="password" id="password" class="form-control mb-3 py-2" placeholder="Mật khẩu">
+            <button onclick="handleLogin()" class="btn btn-primary w-100 py-2">Đăng nhập</button>
         </div>
     </div>
 </div>
 
 <div id="admin-dashboard" class="hidden">
     <div class="sidebar">
-        <h4 class="fw-bold">SmartQuiz Pro</h4>
-        <p class="small text-muted text-uppercase">Bảng điều khiển</p>
-        <hr>
+        <h4>SMARTQUIZ PRO</h4>
         <div class="nav flex-column">
-            <div class="nav-link active" id="btn-scores" onclick="switchTab('tab-scores')">Xếp hạng & Điểm</div>
+            <div class="nav-link active" id="btn-scores" onclick="switchTab('tab-scores')">Bảng xếp hạng</div>
             <div class="nav-link" id="btn-exams" onclick="switchTab('tab-exams')">Quản lý đề thi</div>
-            <div class="nav-link" id="btn-upload" onclick="switchTab('tab-upload')">Tải đề mới (Word)</div>
+            <div class="nav-link" id="btn-upload" onclick="switchTab('tab-upload')">Tải đề Word</div>
             <div class="nav-link text-danger mt-5" onclick="location.reload()">Đăng xuất</div>
         </div>
     </div>
 
     <div class="main-content">
         <div id="tab-scores" class="tab-content">
-            <h3 class="mb-4">🏆 Bảng Xếp Hạng Chi Tiết</h3>
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <select id="filter-exam" class="form-select" onchange="loadRankedScores()">
-                        <option value="">-- Chọn đề thi để xem xếp hạng --</option>
-                    </select>
-                </div>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3 class="fw-bold">🏆 Bảng xếp hạng</h3>
+                <select id="filter-exam" class="form-select w-auto" onchange="loadRankedScores()">
+                    <option value="">-- Chọn đề thi --</option>
+                </select>
             </div>
             <div class="card p-3">
-                <table class="table table-hover align-middle table-ranking">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Hạng</th>
-                            <th>Học sinh</th>
-                            <th>Lớp</th>
-                            <th>Đúng / Sai</th>
-                            <th>Điểm số</th>
-                            <th>Thời gian nộp</th>
-                        </tr>
-                    </thead>
+                <table class="table align-middle">
+                    <thead><tr><th>Hạng</th><th>Học sinh</th><th>Lớp</th><th>Đúng/Sai</th><th>Điểm</th><th>Thời gian</th></tr></thead>
                     <tbody id="score-list"></tbody>
                 </table>
             </div>
         </div>
 
         <div id="tab-exams" class="tab-content hidden">
-            <h3 class="mb-4">Danh sách đề thi</h3>
+            <h3 class="fw-bold mb-4">Danh sách đề thi</h3>
             <div class="card p-3">
                 <table class="table align-middle">
-                    <thead class="table-light">
-                        <tr><th>Tên đề</th><th>Ngày tạo</th><th>Trạng thái</th><th>Thao tác</th></tr>
-                    </thead>
+                    <thead><tr><th>Tên đề</th><th>Ngày tạo</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
                     <tbody id="exam-list"></tbody>
                 </table>
             </div>
         </div>
 
         <div id="tab-upload" class="tab-content hidden">
-            <h3 class="mb-4">Tải đề thi mới (.docx)</h3>
+            <h3 class="fw-bold mb-4">Tải đề thi mới</h3>
             <div class="card p-4">
-                <div class="alert alert-info">
-                    <b>Cấu trúc file chuẩn:</b><br>
-                    - Phần câu hỏi: <b>Câu 1: ... A. B. C. D.</b><br>
-                    - Ngăn cách bằng chữ <b>Hết</b> trên một dòng riêng.<br>
-                    - Phần đáp án bên dưới: <b>1.A, 2.B, 3.C...</b>
+                <div class="alert alert-info py-3 small">
+                    <b>Cấu trúc file:</b> Câu 1: ... A. B. C. D. -> Ngăn cách bằng chữ <b>Hết</b> -> Đáp án: 1.A, 2.B...
                 </div>
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Tên đề thi</label>
-                    <input type="text" id="exam-name" class="form-control" placeholder="VD: Kiểm tra Toán Giữa Kỳ">
-                </div>
+                <input type="text" id="exam-name" class="form-control mb-3" placeholder="Tên đề thi">
                 <div class="input-group mb-3">
                     <input type="file" id="file-picker" class="form-control" accept=".docx">
-                    <button class="btn btn-success" onclick="processWordFile()">Xử lý & Tải lên</button>
+                    <button class="btn btn-success px-4" onclick="processWordFile()">Tải lên</button>
                 </div>
-                <div id="file-log">Sẵn sàng nhận file...</div>
+                <div id="file-log" class="text-muted small p-2 bg-light rounded">Sẵn sàng...</div>
             </div>
         </div>
     </div>
@@ -115,27 +102,26 @@
 <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
 
 <script>
-    // --- 1. CONFIG FIREBASE (Dán mã của bạn vào đây) ---
-    const firebaseConfig = {
+    // --- FIREBASE CONFIG (GIỮ NGUYÊN) ---
+    const firebaseConfig = { 
         apiKey: "AIzaSyBZngQdNGeFNbxz35hdZKuWxqxIxJVKaAA",
-  authDomain: "quizapp-f4f00.firebaseapp.com",
-  projectId: "quizapp-f4f00",
-  storageBucket: "quizapp-f4f00.firebasestorage.app",
-  messagingSenderId: "852224211635",
-  appId: "1:852224211635:web:ef5efe4e2ed092a4960ec6"
+        authDomain: "quizapp-f4f00.firebaseapp.com",
+        projectId: "quizapp-f4f00",
+        storageBucket: "quizapp-f4f00.firebasestorage.app",
+        messagingSenderId: "852224211635",
+        appId: "1:852224211635:web:ef5efe4e2ed092a4960ec6" 
     };
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    // --- 2. LOGIN & TAB NAVIGATION ---
     function handleLogin() {
         auth.signInWithEmailAndPassword(document.getElementById('email').value, document.getElementById('password').value)
             .then(() => {
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('admin-dashboard').classList.remove('hidden');
                 initExamFilter(); loadExams();
-            }).catch(err => alert("Lỗi đăng nhập: " + err.message));
+            }).catch(err => alert("Lỗi: " + err.message));
     }
 
     function switchTab(tabId) {
@@ -145,137 +131,68 @@
         event.currentTarget.classList.add('active');
     }
 
-    // --- 3. QUẢN LÝ XẾP HẠNG ---
     function initExamFilter() {
         db.collection("exams").orderBy("createdAt", "desc").onSnapshot(snap => {
             const select = document.getElementById('filter-exam');
-            select.innerHTML = '<option value="">-- Chọn đề thi để xem xếp hạng --</option>';
-            snap.forEach(doc => {
-                select.innerHTML += `<option value="${doc.id}">${doc.data().name}</option>`;
-            });
+            select.innerHTML = '<option value="">-- Chọn đề thi --</option>';
+            snap.forEach(doc => select.innerHTML += `<option value="${doc.id}">${doc.data().name}</option>`);
         });
     }
 
     function loadRankedScores() {
-        const examId = document.getElementById('filter-exam').value;
-        if(!examId) return;
-
-        db.collection("results").where("examId", "==", examId)
-            .orderBy("score", "desc").orderBy("time", "asc").onSnapshot(snap => {
-                const list = document.getElementById('score-list');
-                list.innerHTML = '';
-                let rank = 1;
-                snap.forEach(doc => {
-                    const d = doc.data();
-                    list.innerHTML += `
-                    <tr>
-                        <td><b class="fs-5">#${rank}</b></td>
-                        <td><b>${d.name}</b></td>
-                        <td>${d.class}</td>
-                        <td><span class="text-success">${d.score} Đúng</span> - <span class="text-danger">${d.wrong || 0} Sai</span></td>
-                        <td><span class="badge bg-primary fs-6">${d.grade10}đ</span></td>
-                        <td>${d.time.toDate().toLocaleTimeString()}</td>
-                    </tr>`;
-                    rank++;
-                });
+        const id = document.getElementById('filter-exam').value; if(!id) return;
+        db.collection("results").where("examId", "==", id).orderBy("score", "desc").orderBy("time", "asc").onSnapshot(snap => {
+            const list = document.getElementById('score-list'); list.innerHTML = ''; let rank = 1;
+            snap.forEach(doc => {
+                const d = doc.data();
+                list.innerHTML += `<tr><td><b class="fs-5">#${rank}</b></td><td><b>${d.name}</b></td><td>${d.class}</td><td><span class="text-success">${d.score}Đ</span> - <span class="text-danger">${d.wrong||0}S</span></td><td><span class="badge bg-primary fs-6">${d.grade10}</span></td><td>${d.time.toDate().toLocaleTimeString()}</td></tr>`;
+                rank++;
             });
+        });
     }
 
-    // --- 4. QUẢN LÝ ĐỀ THI ---
     function loadExams() {
         db.collection("exams").orderBy("createdAt", "desc").onSnapshot(snap => {
-            const list = document.getElementById('exam-list');
-            list.innerHTML = '';
+            const list = document.getElementById('exam-list'); list.innerHTML = '';
             snap.forEach(doc => {
                 const ex = doc.data();
-                list.innerHTML += `
-                <tr>
-                    <td><b>${ex.name}</b></td>
-                    <td>${ex.createdAt.toDate().toLocaleDateString()}</td>
-                    <td><span class="status-badge ${ex.isActive ? 'bg-active' : 'bg-stopped'}">${ex.isActive ? 'Đang mở' : 'Đã dừng'}</span></td>
-                    <td>
-                        <button class="btn btn-sm ${ex.isActive ? 'btn-warning' : 'btn-success'}" onclick="toggleExam('${doc.id}', ${!ex.isActive})">
-                            ${ex.isActive ? 'Dừng' : 'Mở thi'}
-                        </button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteExam('${doc.id}')">Xoá</button>
-                    </td>
-                </tr>`;
+                list.innerHTML += `<tr><td><b>${ex.name}</b></td><td>${ex.createdAt.toDate().toLocaleDateString()}</td><td><span class="status-badge ${ex.isActive?'bg-active':'bg-stopped'}">${ex.isActive?'Mở':'Đóng'}</span></td><td><button class="btn btn-sm ${ex.isActive?'btn-warning':'btn-success'}" onclick="toggleExam('${doc.id}', ${!ex.isActive})">${ex.isActive?'Dừng':'Mở'}</button> <button class="btn btn-sm btn-danger" onclick="deleteExam('${doc.id}')">Xoá</button></td></tr>`;
             });
         });
     }
 
     async function toggleExam(id, status) {
-        if(status) { // Tắt các đề khác khi mở 1 đề mới
+        if(status) {
             const actives = await db.collection("exams").where("isActive", "==", true).get();
-            const batch = db.batch();
-            actives.forEach(d => batch.update(d.ref, {isActive: false}));
+            const batch = db.batch(); actives.forEach(d => batch.update(d.ref, {isActive: false}));
             await batch.commit();
         }
         db.collection("exams").doc(id).update({isActive: status});
     }
 
     async function deleteExam(id) {
-        if(!confirm("Hành động này sẽ xoá sạch câu hỏi và kết quả thi của đề này. Chắc chắn?")) return;
+        if(!confirm("Xoá hết câu hỏi và kết quả?")) return;
         const qs = await db.collection("questions").where("examId", "==", id).get();
-        qs.forEach(q => q.ref.delete());
-        db.collection("exams").doc(id).delete();
+        qs.forEach(q => q.ref.delete()); db.collection("exams").doc(id).delete();
     }
 
-    // --- 5. XỬ LÝ FILE WORD (HẾT + ĐÁP ÁN) ---
     async function processWordFile() {
         const name = document.getElementById('exam-name').value;
         const file = document.getElementById('file-picker').files[0];
-        if(!name || !file) return alert("Vui lòng điền đủ tên đề và chọn file!");
-
-        const log = document.getElementById('file-log');
-        log.innerHTML = "Đang phân tích cấu trúc file...";
-
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            mammoth.extractRawText({arrayBuffer: e.target.result}).then(async result => {
-                const rawText = result.value;
-                const parts = rawText.split(/Hết/i);
-                if(parts.length < 2) return alert("Không tìm thấy chữ 'Hết' để phân tách Đề và Đáp án!");
-
-                const deSection = parts[0];
-                const daSection = parts[1];
-
-                // Map đáp án (VD: 1.A -> {1: 0})
-                const answerMap = {};
-                const matches = daSection.matchAll(/(\d+)[\.\s]*([A-D])/gi);
-                for (const match of matches) {
-                    answerMap[match[1]] = match[2].toUpperCase().charCodeAt(0) - 65;
-                }
-
-                // Tách câu hỏi
-                const blocks = deSection.split(/Câu \d+[:.]/g).filter(b => b.trim().length > 10);
-                
-                const examDoc = await db.collection("exams").add({
-                    name: name,
-                    createdAt: new Date(),
-                    isActive: false
-                });
-
-                blocks.forEach((block, index) => {
-                    const qNum = index + 1;
-                    const lines = block.split(/[A-D][.:]/g);
-                    if(lines.length >= 5) {
-                        db.collection("questions").add({
-                            examId: examDoc.id,
-                            q: lines[0].trim(),
-                            a: [lines[1].trim(), lines[2].trim(), lines[3].trim(), lines[4].trim()],
-                            correct: (answerMap[qNum] !== undefined) ? answerMap[qNum] : 0,
-                            createdAt: new Date()
-                        });
-                    }
-                });
-
-                log.innerHTML = `<b class="text-success">Thành công! Đã tải lên ${blocks.length} câu hỏi.</b>`;
-                alert("Đã lưu đề thi thành công!");
-                switchTab('tab-exams');
+        if(!name || !file) return alert("Thiếu thông tin!");
+        mammoth.extractRawText({arrayBuffer: await file.arrayBuffer()}).then(async result => {
+            const parts = result.value.split(/Hết/i);
+            if(parts.length < 2) return alert("Thiếu chữ 'Hết'!");
+            const ansMap = {}; const matches = parts[1].matchAll(/(\d+)[\.\s]*([A-D])/gi);
+            for (const m of matches) ansMap[m[1]] = m[2].toUpperCase().charCodeAt(0) - 65;
+            const examDoc = await db.collection("exams").add({name, createdAt: new Date(), isActive: false});
+            const blocks = parts[0].split(/Câu \d+[:.]/g).filter(b => b.trim().length > 10);
+            blocks.forEach((block, index) => {
+                const lines = block.split(/[A-D][.:]/g);
+                if(lines.length >= 5) db.collection("questions").add({examId: examDoc.id, q: lines[0].trim(), a: [lines[1].trim(), lines[2].trim(), lines[3].trim(), lines[4].trim()], correct: ansMap[index+1]||0, createdAt: new Date()});
             });
-        };
-        reader.readAsArrayBuffer(file);
+            alert("Tải lên thành công!");
+        });
     }
 </script>
 </body>
