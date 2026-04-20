@@ -5,54 +5,61 @@
     <title>SmartQuiz - Hệ thống thi trực tuyến</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        :root { --primary-color: #3498db; --bg-body: #f0f2f5; --success: #2e7d32; --danger: #c62828; }
+        :root { --primary-color: #3498db; --bg-body: #f0f2f5; }
         body { background: var(--bg-body); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         
+        /* Layout thi cử */
         .quiz-wrapper { display: flex; gap: 20px; max-width: 1200px; margin: 30px auto; padding: 0 15px; }
         .main-quiz { flex: 1; }
         .side-panel { width: 300px; position: sticky; top: 30px; height: fit-content; }
         
+        /* Card & Button */
         .card { border: none; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); background: #fff; }
         .q-card { padding: 30px; margin-bottom: 20px; }
-        
-        /* MCQ CSS */
         .option-btn { 
             display: flex; align-items: center; width: 100%; text-align: left; 
-            margin-bottom: 12px; padding: 15px 20px; border: 1px solid #e0e0e0; 
-            border-radius: 8px; background: #fff; transition: 0.2s; 
+            margin-bottom: 15px; padding: 12px 20px; border: 1px solid #e0e0e0; 
+            border-radius: 50px; background: #fff; transition: all 0.2s; 
         }
-        .option-btn:hover:not([disabled]) { background: #f8f9fa; border-color: var(--primary-color); }
-        .correct { background: #e8f5e9 !important; border-color: var(--success) !important; color: var(--success); }
-        .wrong { background: #ffebee !important; border-color: var(--danger) !important; color: var(--danger); }
-
-        /* Đúng/Sai CSS (Cập nhật mới) */
-        .tf-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 15px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 10px; }
-        .tf-text { flex: 1; font-size: 0.95rem; }
-        .tf-btns { display: flex; gap: 8px; }
-        .btn-tf { width: 60px; height: 35px; border-radius: 6px; border: 1px solid #ddd; background: #fff; font-size: 0.8rem; font-weight: bold; }
-        .btn-tf.active-true { background: var(--success); color: white; border-color: var(--success); }
-        .btn-tf.active-false { background: var(--danger); color: white; border-color: var(--danger); }
-        .row-correct { background: #f1f8f1; border-color: var(--success); }
-        .row-wrong { background: #fff5f5; border-color: var(--danger); }
-
-        .q-num-item { height: 40px; border: 1px solid #ddd; border-radius: 5px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; }
-        .q-num-item.active { border: 2px solid var(--primary-color); color: var(--primary-color); font-weight: bold; }
-        .q-num-item.done { background: #e3f2fd; border-color: #3498db; }
+        .option-label { 
+            width: 35px; height: 35px; border: 1px solid #ddd; border-radius: 50%; 
+            display: flex; align-items: center; justify-content: center; 
+            margin-right: 15px; font-weight: bold; flex-shrink: 0;
+        }
+        .option-btn:hover:not([disabled]) { border-color: var(--primary-color); background: #f7faff; }
         
+        /* Trạng thái đáp án */
+        .correct { background: #e8f5e9 !important; border-color: #2e7d32 !important; color: #2e7d32; }
+        .correct .option-label { background: #2e7d32; color: #fff; border-color: #2e7d32; }
+        .wrong { background: #ffebee !important; border-color: #c62828 !important; color: #c62828; }
+        .wrong .option-label { background: #c62828; color: #fff; border-color: #c62828; }
+
+        /* Danh sách câu hỏi bên phải */
+        .q-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; padding: 15px; }
+        .q-num-item { 
+            height: 40px; border: 1px solid #ddd; border-radius: 5px; 
+            display: flex; align-items: center; justify-content: center; 
+            font-size: 14px; cursor: default; transition: 0.3s;
+        }
+        .q-num-item.active { border: 2px solid var(--primary-color); font-weight: bold; color: var(--primary-color); }
+        .q-num-item.done { background: #e3f2fd; color: #1976d2; border-color: #bbdefb; }
+
         .hidden { display: none; }
+        #timer { font-size: 1.5rem; color: #d32f2f; font-weight: bold; }
+        .my-rank { background: #fff3cd !important; border: 1px solid #ffecb3; }
     </style>
 </head>
 <body>
 
-<div id="auth-screen" class="container mt-5">
+<div class="container mt-5" id="auth-screen">
     <div class="row justify-content-center">
-        <div class="col-md-5 card p-5 text-center">
-            <h2 class="fw-bold mb-4">SmartQuiz Pro</h2>
-            <div id="loading-status" class="alert alert-info">Đang tải đề thi...</div>
-            <div id="login-form" class="hidden text-start">
+        <div class="col-md-5 card p-5 text-center shadow-sm">
+            <h2 class="fw-bold mb-4">SmartQuiz 🚀</h2>
+            <div id="exam-status" class="alert alert-primary small">Đang kết nối...</div>
+            <div id="auth-form" class="hidden text-start">
                 <input type="text" id="name" class="form-control mb-3" placeholder="Họ và Tên">
                 <input type="text" id="class" class="form-control mb-4" placeholder="Lớp">
-                <button onclick="startQuiz()" class="btn btn-primary w-100 py-2">BẮT ĐẦU THI</button>
+                <button onclick="startQuiz()" class="btn btn-primary w-100 py-2 fw-bold">BẮT ĐẦU THI</button>
             </div>
         </div>
     </div>
@@ -61,172 +68,164 @@
 <div id="quiz-wrapper" class="quiz-wrapper hidden">
     <div class="main-quiz">
         <div class="card q-card">
-            <div class="d-flex justify-content-between mb-4">
-                <h5 id="q-label" class="text-primary fw-bold">Câu hỏi 1</h5>
-                <h5 id="timer" class="text-danger fw-bold">15:00</h5>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="text-uppercase fw-bold text-muted" id="exam-title-display">PHẦN I. TRẮC NGHIỆM</h5>
+                <div id="timer">15:00</div>
             </div>
-            <p id="q-text" class="h5 mb-4" style="line-height:1.6"></p>
+            <h4 id="q-text" class="mb-5 fw-bold" style="line-height: 1.6;"></h4>
             <div id="options-box"></div>
-            <div id="tf-action" class="mt-4 hidden">
-                <button onclick="confirmTF()" class="btn btn-primary w-100 py-2">XÁC NHẬN CÂU NÀY</button>
-            </div>
         </div>
     </div>
+
     <div class="side-panel">
-        <div class="card p-3">
-            <h6 class="fw-bold mb-3">Danh sách câu hỏi</h6>
-            <div id="q-nav" class="row g-2"></div>
+        <div class="card mb-3">
+            <div class="card-header bg-white fw-bold py-3">Danh sách câu hỏi</div>
+            <div class="q-list" id="q-nav-list"></div>
         </div>
     </div>
 </div>
 
-<div id="result-screen" class="container mt-5 hidden text-center">
-    <div class="card p-5 shadow-lg">
-        <h1 class="display-1 fw-bold text-primary" id="final-score">0</h1>
-        <p class="h4 mb-4" id="stat-detail"></p>
-        <button onclick="location.reload()" class="btn btn-outline-secondary">Làm bài khác</button>
+<div id="result-screen" class="container mt-5 hidden">
+    <div class="row justify-content-center">
+        <div class="col-md-8 card p-5">
+            <div class="text-center mb-5">
+                <h1 class="display-4 fw-bold">Kết quả: <span id="final-score" class="text-primary">0</span>đ</h1>
+                <p class="h5 text-muted" id="stat-detail">Đúng: 0 | Sai: 0</p>
+            </div>
+            <h5 class="fw-bold mb-3">🏆 Bảng Xếp Hạng</h5>
+            <table class="table table-bordered align-middle">
+                <thead class="table-light"><tr><th>#</th><th>Học sinh</th><th>Đúng</th><th>Sai</th><th>Điểm</th></tr></thead>
+                <tbody id="rank-list"></tbody>
+            </table>
+            <button onclick="location.reload()" class="btn btn-outline-secondary w-100 mt-4">Thoát</button>
+        </div>
     </div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
+
 <script>
+    // --- FIREBASE CONFIG (GIỮ NGUYÊN) ---
     const firebaseConfig = { 
-       apiKey: "AIzaSyBZngQdNGeFNbxz35hdZKuWxqxIxJVKaAA",
-  authDomain: "quizapp-f4f00.firebaseapp.com",
-  projectId: "quizapp-f4f00",
-  storageBucket: "quizapp-f4f00.firebasestorage.app",
-  messagingSenderId: "852224211635",
-  appId: "1:852224211635:web:ef5efe4e2ed092a4960ec6"
+        apiKey: "AIzaSyBZngQdNGeFNbxz35hdZKuWxqxIxJVKaAA",
+        authDomain: "quizapp-f4f00.firebaseapp.com",
+        projectId: "quizapp-f4f00",
+        storageBucket: "quizapp-f4f00.firebasestorage.app",
+        messagingSenderId: "852224211635",
+        appId: "1:852224211635:web:ef5efe4e2ed092a4960ec6" 
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    let activeEx = null, questions = [], curIdx = 0, score = 0, timer, tfChoices = [];
+    let activeEx = null, questions = [], curIdx = 0, score = 0, timer;
 
-    // Tự động tìm đề thi đang mở
     db.collection("exams").where("isActive", "==", true).limit(1).onSnapshot(snap => {
-        if(snap.empty) return document.getElementById('loading-status').innerText = "Không có đề thi nào đang mở.";
+        if(snap.empty) { document.getElementById('exam-status').innerText = "Hiện không có đề mở."; return; }
         activeEx = {id: snap.docs[0].id, ...snap.docs[0].data()};
-        db.collection("questions").where("examId", "==", activeEx.id).orderBy("order").get().then(qs => {
-            questions = qs.docs.map(d => d.data());
-            document.getElementById('loading-status').classList.add('hidden');
-            document.getElementById('login-form').classList.remove('hidden');
-            renderNav();
+        document.getElementById('exam-status').classList.add('hidden');
+        document.getElementById('auth-form').classList.remove('hidden');
+        document.getElementById('exam-title-display').innerText = activeEx.name;
+        db.collection("questions").where("examId", "==", activeEx.id).get().then(q => {
+            questions = q.docs.map(d => d.data());
+            renderQuestionNav();
         });
     });
 
-    function renderNav() {
-        const nav = document.getElementById('q-nav');
-        nav.innerHTML = questions.map((_, i) => `<div class="col-3"><div class="q-num-item" id="nav-${i}">${i+1}</div></div>`).join('');
+    function renderQuestionNav() {
+        const nav = document.getElementById('q-nav-list');
+        nav.innerHTML = '';
+        questions.forEach((_, i) => {
+            nav.innerHTML += `<div class="q-num-item" id="nav-item-${i}">${(i+1).toString().padStart(2, '0')}</div>`;
+        });
     }
 
     function startQuiz() {
-        if(!document.getElementById('name').value) return alert("Nhập tên!");
+        if(!document.getElementById('name').value) return alert("Vui lòng nhập tên!");
         document.getElementById('auth-screen').classList.add('hidden');
         document.getElementById('quiz-wrapper').classList.remove('hidden');
-        showQ();
-        startTimer(15);
+        showQ(); startTimer(15);
     }
 
     function showQ() {
         const q = questions[curIdx];
-        const box = document.getElementById('options-box');
-        const tfAction = document.getElementById('tf-action');
-        document.getElementById('q-label').innerText = `Câu hỏi ${curIdx+1}`;
-        document.getElementById('q-text').innerText = q.q;
-        box.innerHTML = '';
-        tfAction.classList.add('hidden');
-
+        document.getElementById('q-text').innerText = `Câu ${curIdx+1}: ${q.q}`;
+        const box = document.getElementById('options-box'); box.innerHTML = '';
+        
+        // Cập nhật nav
         document.querySelectorAll('.q-num-item').forEach(el => el.classList.remove('active'));
-        document.getElementById(`nav-${curIdx}`).classList.add('active');
+        document.getElementById(`nav-item-${curIdx}`).classList.add('active');
 
-        if(q.type === "tf") {
-            tfAction.classList.remove('hidden');
-            tfChoices = [null, null, null, null];
-            q.options.forEach((opt, i) => {
-                const row = document.createElement('div');
-                row.className = 'tf-row';
-                row.id = `tf-row-${i}`;
-                row.innerHTML = `
-                    <div class="tf-text"><b>${String.fromCharCode(97+i)})</b> ${opt}</div>
-                    <div class="tf-btns">
-                        <button class="btn-tf" id="btn-t-${i}" onclick="selectTF(${i}, true)">Đúng</button>
-                        <button class="btn-tf" id="btn-f-${i}" onclick="selectTF(${i}, false)">Sai</button>
-                    </div>`;
-                box.appendChild(row);
-            });
-        } else {
-            const labels = ['A', 'B', 'C', 'D'];
-            q.a.forEach((opt, i) => {
-                const btn = document.createElement('button');
-                btn.className = 'option-btn';
-                btn.innerHTML = `<span class="me-3 fw-bold">${labels[i]}.</span> ${opt}`;
-                btn.onclick = () => checkMCQ(i, btn);
-                box.appendChild(btn);
-            });
+        let mappedOptions = q.a.map((text, index) => ({ text, isCorrect: index === q.correct }));
+        
+        // Fisher-Yates shuffle
+        for (let i = mappedOptions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [mappedOptions[i], mappedOptions[j]] = [mappedOptions[j], mappedOptions[i]];
         }
-    }
 
-    function selectTF(idx, val) {
-        tfChoices[idx] = val;
-        document.getElementById(`btn-t-${idx}`).className = val ? 'btn-tf active-true' : 'btn-tf';
-        document.getElementById(`btn-f-${idx}`).className = !val ? 'btn-tf active-false' : 'btn-tf';
-    }
-
-    function confirmTF() {
-        if(tfChoices.includes(null)) return alert("Vui lòng chọn Đúng/Sai cho tất cả các ý!");
-        const q = questions[curIdx];
-        let isCorrect = true;
-        q.correct.forEach((val, i) => {
-            const row = document.getElementById(`tf-row-${i}`);
-            if(tfChoices[i] !== val) { isCorrect = false; row.classList.add('row-wrong'); }
-            else { row.classList.add('row-correct'); }
+        const labels = ['A', 'B', 'C', 'D'];
+        mappedOptions.forEach((opt, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.innerHTML = `<span class="option-label">${labels[i]}</span> <span>${opt.text}</span>`;
+            btn.onclick = () => check(btn, opt.isCorrect, mappedOptions);
+            box.appendChild(btn);
         });
-        if(isCorrect) score++;
-        document.getElementById(`nav-${curIdx}`).classList.add('done');
-        setTimeout(nextQ, 1500);
     }
 
-    function checkMCQ(i, btn) {
-        const q = questions[curIdx];
+    function check(btn, isCorrect, options) {
         const btns = document.querySelectorAll('.option-btn');
         btns.forEach(b => b.disabled = true);
-        if(i === q.correct) { btn.classList.add('correct'); score++; }
-        else { btn.classList.add('wrong'); btns[q.correct].classList.add('correct'); }
-        document.getElementById(`nav-${curIdx}`).classList.add('done');
-        setTimeout(nextQ, 1200);
-    }
+        document.getElementById(`nav-item-${curIdx}`).classList.add('done');
 
-    function nextQ() {
-        curIdx++;
-        if(curIdx < questions.length) showQ(); else finish();
+        if(isCorrect) {
+            btn.classList.add('correct');
+            score++;
+        } else {
+            btn.classList.add('wrong');
+            btns.forEach((b, idx) => { if(options[idx].isCorrect) b.classList.add('correct'); });
+        }
+
+        setTimeout(() => {
+            curIdx++;
+            if(curIdx < questions.length) showQ(); else finish();
+        }, 1200);
     }
 
     function startTimer(m) {
         let s = m * 60;
         timer = setInterval(() => {
-            let min = Math.floor(s/60), sec = s%60;
-            document.getElementById('timer').innerText = `${min}:${sec<10?'0':''}${sec}`;
+            let mins = Math.floor(s/60), secs = s%60;
+            document.getElementById('timer').innerText = `${mins}:${secs<10?'0':''}${secs}`;
             if(s-- <= 0) { clearInterval(timer); finish(); }
         }, 1000);
     }
 
     function finish() {
         clearInterval(timer);
-        const g10 = ((score/questions.length)*10).toFixed(2);
+        const total = questions.length;
+        const g10 = ((score/total)*10).toFixed(2);
+        const studentName = document.getElementById('name').value;
         document.getElementById('quiz-wrapper').classList.add('hidden');
         document.getElementById('result-screen').classList.remove('hidden');
         document.getElementById('final-score').innerText = g10;
-        document.getElementById('stat-detail').innerText = `Làm đúng ${score} / ${questions.length} câu`;
-        
-        db.collection("results").add({
-            name: document.getElementById('name').value,
-            class: document.getElementById('class').value,
-            examId: activeEx.name,
-            score: score,
-            grade10: g10,
-            time: new Date()
+        document.getElementById('stat-detail').innerText = `Đúng: ${score} | Sai: ${total - score}`;
+
+        const res = { 
+            name: studentName, class: document.getElementById('class').value, 
+            examId: activeEx.id, score, wrong: total-score, grade10: g10, time: new Date() 
+        };
+        db.collection("results").add(res).then(() => loadRanking(activeEx.id, studentName));
+    }
+
+    function loadRanking(exId, myName) {
+        db.collection("results").where("examId", "==", exId).orderBy("score", "desc").orderBy("time", "asc").onSnapshot(snap => {
+            const list = document.getElementById('rank-list'); list.innerHTML = '';
+            snap.docs.forEach((doc, i) => {
+                const d = doc.data(); const isMe = (d.name === myName);
+                list.innerHTML += `<tr class="${isMe?'my-rank fw-bold':''}"><td>${i+1}</td><td>${d.name} ${isMe?'(Bạn)':''}</td><td>${d.score}</td><td>${d.wrong||0}</td><td><span class="badge bg-primary">${d.grade10}</span></td></tr>`;
+            });
         });
     }
 </script>
