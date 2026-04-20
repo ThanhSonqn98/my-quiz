@@ -53,16 +53,17 @@
         <div id="tab-upload" class="tab-content">
             <h3 class="fw-bold mb-4">Tải đề thi mới</h3>
             <div class="card p-4">
-                <div class="alert alert-warning small mb-4">
-                    <b>Cấu trúc file:</b> Câu 1: ... A. B. C. D. | Câu 2: ... Chọn đúng hoặc sai a) b) c) d) <br>
-                    <b>Đáp án sau chữ "Hết":</b> 1.A, 2.ĐSĐS
+                <div class="alert alert-info small mb-4">
+                    <b>Cấu trúc file Word:</b><br>
+                    - Câu MCQ: <i>Câu 1: Nội dung... A. B. C. D.</i> (Đáp án: 1.A)<br>
+                    - Câu Đúng/Sai: <i>Câu 2: Nội dung... Chọn đúng hoặc sai a) b) c) d)</i> (Đáp án: 2.ĐSĐĐ)
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-bold">Tên kỳ thi</label>
-                    <input type="text" id="exam-name" class="form-control" placeholder="Nhập tên đề thi">
+                    <input type="text" id="exam-name" class="form-control" placeholder="Ví dụ: Kiểm tra 15 phút - Lý 12">
                 </div>
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Chọn file DOCX</label>
+                    <label class="form-label fw-bold">Chọn file (.docx)</label>
                     <input type="file" id="file-picker" class="form-control" accept=".docx">
                 </div>
                 <button class="btn btn-primary" onclick="processWordFile()">Tải lên hệ thống</button>
@@ -75,10 +76,10 @@
         </div>
 
         <div id="tab-results" class="tab-content hidden">
-            <h3 class="fw-bold mb-4">Kết quả học sinh</h3>
+            <h3 class="fw-bold mb-4">Kết quả thi</h3>
             <div class="card p-3">
                 <table class="table align-middle">
-                    <thead><tr><th>Tên</th><th>Lớp</th><th>Đề</th><th>Điểm</th><th>Ngày</th></tr></thead>
+                    <thead class="table-light"><tr><th>Tên</th><th>Lớp</th><th>Đề thi</th><th>Điểm</th><th>Thời gian</th></tr></thead>
                     <tbody id="results-body"></tbody>
                 </table>
             </div>
@@ -87,7 +88,7 @@
 </div>
 
 <script>
-    // COPY CẤU HÌNH FIREBASE CỦA BẠN VÀO ĐÂY
+    // CẤU HÌNH FIREBASE - THAY BẰNG THÔNG TIN CỦA BẠN
     const firebaseConfig = {
         apiKey: "AIzaSyBZngQdNGeFNbxz35hdZKuWxqxIxJVKaAA",
   authDomain: "quizapp-f4f00.firebaseapp.com",
@@ -100,33 +101,26 @@
     const db = firebase.firestore();
     const auth = firebase.auth();
 
-    // LOGIC ĐĂNG NHẬP KIỂU CŨ
     function login() {
         const email = document.getElementById('admin-email').value;
         const pass = document.getElementById('admin-password').value;
         auth.signInWithEmailAndPassword(email, pass)
-            .then(() => {
-                document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('admin-panel').classList.remove('hidden');
-                loadExams();
-                loadResults();
-            })
-            .catch(err => alert("Lỗi đăng nhập: " + err.message));
+            .then(() => toggleUI(true))
+            .catch(err => alert("Lỗi: " + err.message));
     }
 
-    function logout() {
-        auth.signOut().then(() => location.reload());
-    }
+    function logout() { auth.signOut().then(() => location.reload()); }
 
-    // Kiểm tra trạng thái đăng nhập khi load trang
-    auth.onAuthStateChanged(user => {
-        if (user) {
+    auth.onAuthStateChanged(user => { if (user) toggleUI(true); });
+
+    function toggleUI(isLoggedIn) {
+        if(isLoggedIn) {
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('admin-panel').classList.remove('hidden');
             loadExams();
             loadResults();
         }
-    });
+    }
 
     function switchTab(tabId, el) {
         document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
@@ -138,12 +132,13 @@
     async function processWordFile() {
         const name = document.getElementById('exam-name').value;
         const file = document.getElementById('file-picker').files[0];
-        if(!name || !file) return alert("Thiếu dữ liệu!");
+        if(!name || !file) return alert("Vui lòng điền đủ thông tin!");
 
         mammoth.extractRawText({arrayBuffer: await file.arrayBuffer()}).then(async result => {
             const parts = result.value.split(/Hết/i);
-            if(parts.length < 2) return alert("Thiếu chữ 'Hết'!");
+            if(parts.length < 2) return alert("Không tìm thấy chữ 'Hết'!");
             
+            // Xử lý Map đáp án hỗ trợ cả A-D và Đ/S
             const ansMap = {};
             const matches = parts[1].matchAll(/(\d+)[\.\s]*([A-DĐS]+)/gi);
             for (const m of matches) {
@@ -158,7 +153,9 @@
             
             for(let i=0; i<blocks.length; i++) {
                 const block = blocks[i];
+                const qNum = i + 1;
                 const isTF = block.toLowerCase().includes("đúng hoặc sai");
+
                 if(isTF) {
                     const lines = block.split(/[a-d]\)/g);
                     if(lines.length >= 5) {
@@ -166,8 +163,8 @@
                             examId: examDoc.id, type: "tf",
                             q: lines[0].trim().replace("Chọn đúng hoặc sai", ""),
                             options: [lines[1].trim(), lines[2].trim(), lines[3].trim(), lines[4].trim()],
-                            correct: ansMap[i+1] || [true, true, true, true],
-                            order: i+1
+                            correct: ansMap[qNum] || [true, true, true, true],
+                            order: qNum
                         });
                     }
                 } else {
@@ -177,13 +174,14 @@
                             examId: examDoc.id, type: "mcq",
                             q: lines[0].trim(),
                             a: [lines[1].trim(), lines[2].trim(), lines[3].trim(), lines[4].trim()],
-                            correct: ansMap[i+1] || 0,
-                            order: i+1
+                            correct: ansMap[qNum] || 0,
+                            order: qNum
                         });
                     }
                 }
             }
             alert("Đã tải lên thành công!");
+            loadExams();
         });
     }
 
@@ -195,10 +193,13 @@
                 const d = doc.data();
                 list.innerHTML += `
                     <div class="exam-item">
-                        <div><b>${d.name}</b> <br> <small>${d.isActive?'Đang mở':'Đang đóng'}</small></div>
                         <div>
-                            <button class="btn btn-sm btn-info" onclick="db.collection('exams').doc('${doc.id}').update({isActive:${!d.isActive}})">Mở/Đóng</button>
-                            <button class="btn btn-sm btn-danger" onclick="deleteExam('${doc.id}')">Xóa</button>
+                            <span class="fw-bold">${d.name}</span><br>
+                            <small class="${d.isActive?'text-success':'text-muted'}">${d.isActive?'Đang mở':'Đang đóng'}</small>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary" onclick="db.collection('exams').doc('${doc.id}').update({isActive:${!d.isActive}})">Đổi trạng thái</button>
+                            <button class="btn btn-sm btn-danger ms-2" onclick="deleteExam('${doc.id}')">Xóa</button>
                         </div>
                     </div>`;
             });
@@ -206,7 +207,7 @@
     }
 
     async function deleteExam(id) {
-        if(!confirm("Xóa đề này?")) return;
+        if(!confirm("Bạn có chắc muốn xóa đề thi này?")) return;
         const qs = await db.collection("questions").where("examId", "==", id).get();
         const batch = db.batch();
         qs.forEach(q => batch.delete(q.ref));
@@ -215,12 +216,12 @@
     }
 
     function loadResults() {
-        db.collection("results").orderBy("time", "desc").onSnapshot(snap => {
+        db.collection("results").orderBy("time", "desc").limit(50).onSnapshot(snap => {
             const body = document.getElementById('results-body');
             body.innerHTML = '';
             snap.forEach(doc => {
                 const d = doc.data();
-                body.innerHTML += `<tr><td>${d.name}</td><td>${d.class}</td><td>${d.examId}</td><td>${d.grade10}</td><td>${new Date(d.time.seconds*1000).toLocaleDateString()}</td></tr>`;
+                body.innerHTML += `<tr><td>${d.name}</td><td>${d.class}</td><td>${d.examId}</td><td class="text-primary fw-bold">${d.grade10}</td><td>${new Date(d.time.seconds*1000).toLocaleString('vi-VN')}</td></tr>`;
             });
         });
     }
