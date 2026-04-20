@@ -2,64 +2,63 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>SmartQuiz - Hệ thống thi trực tuyến</title>
+    <title>SmartQuiz - Bài thi trực tuyến</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         :root { --primary-color: #3498db; --bg-body: #f0f2f5; }
-        body { background: var(--bg-body); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        
-        /* Layout thi cử */
+        body { background: var(--bg-body); font-family: 'Segoe UI', sans-serif; }
         .quiz-wrapper { display: flex; gap: 20px; max-width: 1200px; margin: 30px auto; padding: 0 15px; }
         .main-quiz { flex: 1; }
-        .side-panel { width: 300px; position: sticky; top: 30px; height: fit-content; }
+        .side-panel { width: 320px; position: sticky; top: 30px; height: fit-content; }
+        .card { border: none; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         
-        /* Card & Button */
-        .card { border: none; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); background: #fff; }
-        .q-card { padding: 30px; margin-bottom: 20px; }
+        /* Style Trắc nghiệm */
         .option-btn { 
             display: flex; align-items: center; width: 100%; text-align: left; 
-            margin-bottom: 15px; padding: 12px 20px; border: 1px solid #e0e0e0; 
-            border-radius: 50px; background: #fff; transition: all 0.2s; 
+            margin-bottom: 12px; padding: 15px 25px; border: 1px solid #e0e0e0; 
+            border-radius: 50px; background: #fff; transition: 0.2s; 
         }
         .option-label { 
             width: 35px; height: 35px; border: 1px solid #ddd; border-radius: 50%; 
             display: flex; align-items: center; justify-content: center; 
             margin-right: 15px; font-weight: bold; flex-shrink: 0;
         }
-        .option-btn:hover:not([disabled]) { border-color: var(--primary-color); background: #f7faff; }
-        
-        /* Trạng thái đáp án */
         .correct { background: #e8f5e9 !important; border-color: #2e7d32 !important; color: #2e7d32; }
-        .correct .option-label { background: #2e7d32; color: #fff; border-color: #2e7d32; }
         .wrong { background: #ffebee !important; border-color: #c62828 !important; color: #c62828; }
-        .wrong .option-label { background: #c62828; color: #fff; border-color: #c62828; }
 
-        /* Danh sách câu hỏi bên phải */
+        /* Style Đúng Sai */
+        .tf-row { display: flex; align-items: center; justify-content: space-between; padding: 15px; border: 1px solid #eee; border-radius: 10px; margin-bottom: 10px; }
+        .btn-tf { width: 60px; height: 35px; border-radius: 20px; border: 1px solid #ddd; background: #fff; font-size: 13px; margin-left: 5px; }
+        .tf-active-true { background: #2e7d32 !important; color: #fff !important; }
+        .tf-active-false { background: #c62828 !important; color: #fff !important; }
+
+        /* Style Kéo thả */
+        .drop-zone { border-bottom: 2px solid var(--primary-color); color: var(--primary-color); font-weight: bold; padding: 0 10px; min-width: 60px; display: inline-block; text-align: center; }
+        
+        /* Nav Câu hỏi */
         .q-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; padding: 15px; }
         .q-num-item { 
-            height: 40px; border: 1px solid #ddd; border-radius: 5px; 
-            display: flex; align-items: center; justify-content: center; 
-            font-size: 14px; cursor: default; transition: 0.3s;
+            height: 40px; border: 1px solid #ddd; border-radius: 8px; 
+            display: flex; align-items: center; justify-content: center; font-size: 14px; 
         }
-        .q-num-item.active { border: 2px solid var(--primary-color); font-weight: bold; color: var(--primary-color); }
-        .q-num-item.done { background: #e3f2fd; color: #1976d2; border-color: #bbdefb; }
+        .q-active { border: 2px solid var(--primary-color); color: var(--primary-color); font-weight: bold; }
+        .q-done { background: #e3f2fd; color: #1976d2; }
 
         .hidden { display: none; }
-        #timer { font-size: 1.5rem; color: #d32f2f; font-weight: bold; }
-        .my-rank { background: #fff3cd !important; border: 1px solid #ffecb3; }
+        #timer { font-size: 1.6rem; color: #d32f2f; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="container mt-5" id="auth-screen">
     <div class="row justify-content-center">
-        <div class="col-md-5 card p-5 text-center shadow-sm">
+        <div class="col-md-5 card p-5 text-center shadow">
             <h2 class="fw-bold mb-4">SmartQuiz 🚀</h2>
-            <div id="exam-status" class="alert alert-primary small">Đang kết nối...</div>
+            <div id="exam-status" class="alert alert-info small">Đang kiểm tra đề thi...</div>
             <div id="auth-form" class="hidden text-start">
                 <input type="text" id="name" class="form-control mb-3" placeholder="Họ và Tên">
                 <input type="text" id="class" class="form-control mb-4" placeholder="Lớp">
-                <button onclick="startQuiz()" class="btn btn-primary w-100 py-2 fw-bold">BẮT ĐẦU THI</button>
+                <button onclick="startQuiz()" class="btn btn-primary w-100 py-2 fw-bold">VÀO THI NGAY</button>
             </div>
         </div>
     </div>
@@ -67,9 +66,9 @@
 
 <div id="quiz-wrapper" class="quiz-wrapper hidden">
     <div class="main-quiz">
-        <div class="card q-card">
+        <div class="card p-4">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h5 class="text-uppercase fw-bold text-muted" id="exam-title-display">PHẦN I. TRẮC NGHIỆM</h5>
+                <h5 class="text-muted fw-bold" id="q-type-label">PHẦN I. TRẮC NGHIỆM</h5>
                 <div id="timer">15:00</div>
             </div>
             <h4 id="q-text" class="mb-5 fw-bold" style="line-height: 1.6;"></h4>
@@ -79,25 +78,21 @@
 
     <div class="side-panel">
         <div class="card mb-3">
-            <div class="card-header bg-white fw-bold py-3">Danh sách câu hỏi</div>
+            <div class="card-header bg-white fw-bold py-3 text-center">Danh sách câu hỏi</div>
             <div class="q-list" id="q-nav-list"></div>
+            <div class="p-3"><button class="btn btn-danger w-100 fw-bold" onclick="finish()">NỘP BÀI</button></div>
         </div>
     </div>
 </div>
 
 <div id="result-screen" class="container mt-5 hidden">
     <div class="row justify-content-center">
-        <div class="col-md-8 card p-5">
-            <div class="text-center mb-5">
-                <h1 class="display-4 fw-bold">Kết quả: <span id="final-score" class="text-primary">0</span>đ</h1>
-                <p class="h5 text-muted" id="stat-detail">Đúng: 0 | Sai: 0</p>
-            </div>
-            <h5 class="fw-bold mb-3">🏆 Bảng Xếp Hạng</h5>
-            <table class="table table-bordered align-middle">
-                <thead class="table-light"><tr><th>#</th><th>Học sinh</th><th>Đúng</th><th>Sai</th><th>Điểm</th></tr></thead>
-                <tbody id="rank-list"></tbody>
-            </table>
-            <button onclick="location.reload()" class="btn btn-outline-secondary w-100 mt-4">Thoát</button>
+        <div class="col-md-8 card p-5 text-center">
+            <h1 class="display-4 fw-bold">Kết quả: <span id="final-score" class="text-primary">0</span>đ</h1>
+            <p class="h5 text-muted mb-5" id="stat-detail">Đúng: 0 | Sai: 0</p>
+            <h5 class="fw-bold mb-3 text-start">🏆 Bảng Xếp Hạng</h5>
+            <table class="table table-bordered"><tbody id="rank-list"></tbody></table>
+            <button onclick="location.reload()" class="btn btn-outline-secondary mt-4">Trang chủ</button>
         </div>
     </div>
 </div>
@@ -106,7 +101,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
 
 <script>
-    // --- FIREBASE CONFIG (GIỮ NGUYÊN) ---
     const firebaseConfig = { 
         apiKey: "AIzaSyBZngQdNGeFNbxz35hdZKuWxqxIxJVKaAA",
         authDomain: "quizapp-f4f00.firebaseapp.com",
@@ -121,27 +115,23 @@
     let activeEx = null, questions = [], curIdx = 0, score = 0, timer;
 
     db.collection("exams").where("isActive", "==", true).limit(1).onSnapshot(snap => {
-        if(snap.empty) { document.getElementById('exam-status').innerText = "Hiện không có đề mở."; return; }
+        if(snap.empty) return;
         activeEx = {id: snap.docs[0].id, ...snap.docs[0].data()};
         document.getElementById('exam-status').classList.add('hidden');
         document.getElementById('auth-form').classList.remove('hidden');
-        document.getElementById('exam-title-display').innerText = activeEx.name;
         db.collection("questions").where("examId", "==", activeEx.id).get().then(q => {
             questions = q.docs.map(d => d.data());
-            renderQuestionNav();
+            renderNav();
         });
     });
 
-    function renderQuestionNav() {
-        const nav = document.getElementById('q-nav-list');
-        nav.innerHTML = '';
-        questions.forEach((_, i) => {
-            nav.innerHTML += `<div class="q-num-item" id="nav-item-${i}">${(i+1).toString().padStart(2, '0')}</div>`;
-        });
+    function renderNav() {
+        const nav = document.getElementById('q-nav-list'); nav.innerHTML = '';
+        questions.forEach((_, i) => nav.innerHTML += `<div class="q-num-item" id="nav-${i}">${i+1}</div>`);
     }
 
     function startQuiz() {
-        if(!document.getElementById('name').value) return alert("Vui lòng nhập tên!");
+        if(!document.getElementById('name').value) return alert("Nhập tên!");
         document.getElementById('auth-screen').classList.add('hidden');
         document.getElementById('quiz-wrapper').classList.remove('hidden');
         showQ(); startTimer(15);
@@ -149,56 +139,53 @@
 
     function showQ() {
         const q = questions[curIdx];
-        document.getElementById('q-text').innerText = `Câu ${curIdx+1}: ${q.q}`;
+        document.getElementById('q-text').innerText = q.q;
         const box = document.getElementById('options-box'); box.innerHTML = '';
-        
-        // Cập nhật nav
-        document.querySelectorAll('.q-num-item').forEach(el => el.classList.remove('active'));
-        document.getElementById(`nav-item-${curIdx}`).classList.add('active');
+        document.querySelectorAll('.q-num-item').forEach(el => el.classList.remove('q-active'));
+        document.getElementById(`nav-${curIdx}`).classList.add('q-active');
 
-        let mappedOptions = q.a.map((text, index) => ({ text, isCorrect: index === q.correct }));
-        
-        // Fisher-Yates shuffle
-        for (let i = mappedOptions.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [mappedOptions[i], mappedOptions[j]] = [mappedOptions[j], mappedOptions[i]];
+        if (q.type === "choice") {
+            document.getElementById('q-type-label').innerText = "PHẦN I. TRẮC NGHIỆM";
+            ['A','B','C','D'].forEach((l, i) => {
+                const b = document.createElement('button'); b.className = 'option-btn';
+                b.innerHTML = `<span class="option-label">${l}</span> <span>${q.a[i]}</span>`;
+                b.onclick = () => {
+                    document.querySelectorAll('.option-btn').forEach(btn => btn.disabled = true);
+                    if(i === q.correct) { b.classList.add('correct'); score++; } else { b.classList.add('wrong'); }
+                    document.getElementById(`nav-${curIdx}`).classList.add('q-done');
+                    setTimeout(() => { curIdx++; if(curIdx < questions.length) showQ(); else finish(); }, 1000);
+                };
+                box.appendChild(b);
+            });
+        } else if (q.type === "tf") {
+            document.getElementById('q-type-label').innerText = "PHẦN II. ĐÚNG/SAI";
+            q.items.forEach((item, i) => {
+                const row = document.createElement('div'); row.className = 'tf-row';
+                row.innerHTML = `<div><b>${item.label})</b> ${item.text}</div>
+                    <div><button class="btn-tf" onclick="checkTF(this, '${item.correct}', 'Đúng')">Đúng</button>
+                    <button class="btn-tf" onclick="checkTF(this, '${item.correct}', 'Sai')">Sai</button></div>`;
+                box.appendChild(row);
+            });
+            box.innerHTML += `<button class="btn btn-primary w-100 mt-4" onclick="next()">TIẾP THEO</button>`;
         }
-
-        const labels = ['A', 'B', 'C', 'D'];
-        mappedOptions.forEach((opt, i) => {
-            const btn = document.createElement('button');
-            btn.className = 'option-btn';
-            btn.innerHTML = `<span class="option-label">${labels[i]}</span> <span>${opt.text}</span>`;
-            btn.onclick = () => check(btn, opt.isCorrect, mappedOptions);
-            box.appendChild(btn);
-        });
     }
 
-    function check(btn, isCorrect, options) {
-        const btns = document.querySelectorAll('.option-btn');
-        btns.forEach(b => b.disabled = true);
-        document.getElementById(`nav-item-${curIdx}`).classList.add('done');
+    function checkTF(btn, cor, user) {
+        btn.parentElement.querySelectorAll('button').forEach(b => b.disabled = true);
+        if(user === cor) { btn.classList.add('tf-active-true'); score += 0.25; } 
+        else { btn.classList.add('tf-active-false'); }
+    }
 
-        if(isCorrect) {
-            btn.classList.add('correct');
-            score++;
-        } else {
-            btn.classList.add('wrong');
-            btns.forEach((b, idx) => { if(options[idx].isCorrect) b.classList.add('correct'); });
-        }
-
-        setTimeout(() => {
-            curIdx++;
-            if(curIdx < questions.length) showQ(); else finish();
-        }, 1200);
+    function next() {
+        document.getElementById(`nav-${curIdx}`).classList.add('q-done');
+        curIdx++; if(curIdx < questions.length) showQ(); else finish();
     }
 
     function startTimer(m) {
         let s = m * 60;
         timer = setInterval(() => {
-            let mins = Math.floor(s/60), secs = s%60;
-            document.getElementById('timer').innerText = `${mins}:${secs<10?'0':''}${secs}`;
-            if(s-- <= 0) { clearInterval(timer); finish(); }
+            document.getElementById('timer').innerText = `${Math.floor(s/60)}:${s%60<10?'0':''}${s%60}`;
+            if(s-- <= 0) finish();
         }, 1000);
     }
 
@@ -206,25 +193,20 @@
         clearInterval(timer);
         const total = questions.length;
         const g10 = ((score/total)*10).toFixed(2);
-        const studentName = document.getElementById('name').value;
         document.getElementById('quiz-wrapper').classList.add('hidden');
         document.getElementById('result-screen').classList.remove('hidden');
         document.getElementById('final-score').innerText = g10;
-        document.getElementById('stat-detail').innerText = `Đúng: ${score} | Sai: ${total - score}`;
-
-        const res = { 
-            name: studentName, class: document.getElementById('class').value, 
-            examId: activeEx.id, score, wrong: total-score, grade10: g10, time: new Date() 
-        };
-        db.collection("results").add(res).then(() => loadRanking(activeEx.id, studentName));
+        const name = document.getElementById('name').value;
+        db.collection("results").add({name, class: document.getElementById('class').value, examId: activeEx.id, score, wrong: total-score, grade10: g10, time: new Date()})
+        .then(() => loadRanking(activeEx.id, name));
     }
 
-    function loadRanking(exId, myName) {
-        db.collection("results").where("examId", "==", exId).orderBy("score", "desc").orderBy("time", "asc").onSnapshot(snap => {
+    function loadRanking(id, myName) {
+        db.collection("results").where("examId", "==", id).orderBy("score", "desc").limit(10).onSnapshot(snap => {
             const list = document.getElementById('rank-list'); list.innerHTML = '';
-            snap.docs.forEach((doc, i) => {
-                const d = doc.data(); const isMe = (d.name === myName);
-                list.innerHTML += `<tr class="${isMe?'my-rank fw-bold':''}"><td>${i+1}</td><td>${d.name} ${isMe?'(Bạn)':''}</td><td>${d.score}</td><td>${d.wrong||0}</td><td><span class="badge bg-primary">${d.grade10}</span></td></tr>`;
+            snap.docs.forEach((d, i) => {
+                const data = d.data();
+                list.innerHTML += `<tr class="${data.name === myName?'table-warning':''}"><td>${i+1}</td><td>${data.name}</td><td>${data.grade10}đ</td></tr>`;
             });
         });
     }
