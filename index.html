@@ -7,43 +7,22 @@
     <style>
         :root { --primary-color: #3498db; --bg-body: #f0f2f5; }
         body { background: var(--bg-body); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        
-        /* Layout thi cử */
         .quiz-wrapper { display: flex; gap: 20px; max-width: 1200px; margin: 30px auto; padding: 0 15px; }
         .main-quiz { flex: 1; }
         .side-panel { width: 300px; position: sticky; top: 30px; height: fit-content; }
-        
-        /* Card & Button */
         .card { border: none; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); background: #fff; }
         .q-card { padding: 30px; margin-bottom: 20px; }
-        .option-btn { 
-            display: flex; align-items: center; width: 100%; text-align: left; 
-            margin-bottom: 15px; padding: 12px 20px; border: 1px solid #e0e0e0; 
-            border-radius: 50px; background: #fff; transition: all 0.2s; 
-        }
-        .option-label { 
-            width: 35px; height: 35px; border: 1px solid #ddd; border-radius: 50%; 
-            display: flex; align-items: center; justify-content: center; 
-            margin-right: 15px; font-weight: bold; flex-shrink: 0;
-        }
+        .option-btn { display: flex; align-items: center; width: 100%; text-align: left; margin-bottom: 15px; padding: 12px 20px; border: 1px solid #e0e0e0; border-radius: 50px; background: #fff; transition: all 0.2s; }
+        .option-label { width: 35px; height: 35px; border: 1px solid #ddd; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-weight: bold; flex-shrink: 0; }
         .option-btn:hover:not([disabled]) { border-color: var(--primary-color); background: #f7faff; }
-        
-        /* Trạng thái đáp án */
         .correct { background: #e8f5e9 !important; border-color: #2e7d32 !important; color: #2e7d32; }
         .correct .option-label { background: #2e7d32; color: #fff; border-color: #2e7d32; }
         .wrong { background: #ffebee !important; border-color: #c62828 !important; color: #c62828; }
         .wrong .option-label { background: #c62828; color: #fff; border-color: #c62828; }
-
-        /* Danh sách câu hỏi bên phải */
         .q-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; padding: 15px; }
-        .q-num-item { 
-            height: 40px; border: 1px solid #ddd; border-radius: 5px; 
-            display: flex; align-items: center; justify-content: center; 
-            font-size: 14px; cursor: default; transition: 0.3s;
-        }
+        .q-num-item { height: 40px; border: 1px solid #ddd; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: default; transition: 0.3s; }
         .q-num-item.active { border: 2px solid var(--primary-color); font-weight: bold; color: var(--primary-color); }
         .q-num-item.done { background: #e3f2fd; color: #1976d2; border-color: #bbdefb; }
-
         .hidden { display: none; }
         #timer { font-size: 1.5rem; color: #d32f2f; font-weight: bold; }
         .my-rank { background: #fff3cd !important; border: 1px solid #ffecb3; }
@@ -69,14 +48,13 @@
     <div class="main-quiz">
         <div class="card q-card">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h5 class="text-uppercase fw-bold text-muted" id="exam-title-display">PHẦN I. TRẮC NGHIỆM</h5>
-                <div id="timer">15:00</div>
+                <h5 class="text-uppercase fw-bold text-muted" id="exam-title-display">ĐỀ THI</h5>
+                <div id="timer">00:00</div>
             </div>
             <h4 id="q-text" class="mb-5 fw-bold" style="line-height: 1.6;"></h4>
             <div id="options-box"></div>
         </div>
     </div>
-
     <div class="side-panel">
         <div class="card mb-3">
             <div class="card-header bg-white fw-bold py-3">Danh sách câu hỏi</div>
@@ -106,7 +84,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
 
 <script>
-    // --- FIREBASE CONFIG (GIỮ NGUYÊN) ---
     const firebaseConfig = { 
         apiKey: "AIzaSyBZngQdNGeFNbxz35hdZKuWxqxIxJVKaAA",
         authDomain: "quizapp-f4f00.firebaseapp.com",
@@ -126,6 +103,10 @@
         document.getElementById('exam-status').classList.add('hidden');
         document.getElementById('auth-form').classList.remove('hidden');
         document.getElementById('exam-title-display').innerText = activeEx.name;
+        // Hiển thị thời gian ban đầu
+        const initialMins = activeEx.timeLimit || 15;
+        document.getElementById('timer').innerText = `${initialMins}:00`;
+        
         db.collection("questions").where("examId", "==", activeEx.id).get().then(q => {
             questions = q.docs.map(d => d.data());
             renderQuestionNav();
@@ -144,26 +125,22 @@
         if(!document.getElementById('name').value) return alert("Vui lòng nhập tên!");
         document.getElementById('auth-screen').classList.add('hidden');
         document.getElementById('quiz-wrapper').classList.remove('hidden');
-        showQ(); startTimer(15);
+        showQ(); 
+        startTimer(activeEx.timeLimit || 15);
     }
 
     function showQ() {
         const q = questions[curIdx];
         document.getElementById('q-text').innerText = `Câu ${curIdx+1}: ${q.q}`;
         const box = document.getElementById('options-box'); box.innerHTML = '';
-        
-        // Cập nhật nav
         document.querySelectorAll('.q-num-item').forEach(el => el.classList.remove('active'));
         document.getElementById(`nav-item-${curIdx}`).classList.add('active');
 
         let mappedOptions = q.a.map((text, index) => ({ text, isCorrect: index === q.correct }));
-        
-        // Fisher-Yates shuffle
         for (let i = mappedOptions.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [mappedOptions[i], mappedOptions[j]] = [mappedOptions[j], mappedOptions[i]];
         }
-
         const labels = ['A', 'B', 'C', 'D'];
         mappedOptions.forEach((opt, i) => {
             const btn = document.createElement('button');
@@ -178,19 +155,9 @@
         const btns = document.querySelectorAll('.option-btn');
         btns.forEach(b => b.disabled = true);
         document.getElementById(`nav-item-${curIdx}`).classList.add('done');
-
-        if(isCorrect) {
-            btn.classList.add('correct');
-            score++;
-        } else {
-            btn.classList.add('wrong');
-            btns.forEach((b, idx) => { if(options[idx].isCorrect) b.classList.add('correct'); });
-        }
-
-        setTimeout(() => {
-            curIdx++;
-            if(curIdx < questions.length) showQ(); else finish();
-        }, 1200);
+        if(isCorrect) { btn.classList.add('correct'); score++; } 
+        else { btn.classList.add('wrong'); btns.forEach((b, idx) => { if(options[idx].isCorrect) b.classList.add('correct'); }); }
+        setTimeout(() => { curIdx++; if(curIdx < questions.length) showQ(); else finish(); }, 1200);
     }
 
     function startTimer(m) {
@@ -203,7 +170,9 @@
     }
 
     function finish() {
+        if(!timer) return; // Tránh chạy 2 lần
         clearInterval(timer);
+        timer = null;
         const total = questions.length;
         const g10 = ((score/total)*10).toFixed(2);
         const studentName = document.getElementById('name').value;
