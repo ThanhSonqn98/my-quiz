@@ -2,63 +2,70 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>SmartQuiz - Bài thi trực tuyến</title>
+    <title>SmartQuiz - Hệ thống thi trực tuyến</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        :root { --primary-color: #3498db; --bg-body: #f0f2f5; }
-        body { background: var(--bg-body); font-family: 'Segoe UI', sans-serif; }
+        :root { --primary-color: #3498db; --bg-body: #f0f2f5; --success: #2e7d32; --danger: #c62828; }
+        body { background: var(--bg-body); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
         .quiz-wrapper { display: flex; gap: 20px; max-width: 1200px; margin: 30px auto; padding: 0 15px; }
         .main-quiz { flex: 1; }
-        .side-panel { width: 320px; position: sticky; top: 30px; height: fit-content; }
-        .card { border: none; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .side-panel { width: 300px; position: sticky; top: 30px; height: fit-content; }
         
-        /* Style Trắc nghiệm */
+        .card { border: none; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); background: #fff; }
+        .q-card { padding: 35px; min-height: 400px; }
+        
+        /* MCQ CSS */
         .option-btn { 
             display: flex; align-items: center; width: 100%; text-align: left; 
             margin-bottom: 12px; padding: 15px 25px; border: 1px solid #e0e0e0; 
-            border-radius: 50px; background: #fff; transition: 0.2s; 
+            border-radius: 50px; background: #fff; transition: all 0.2s; 
         }
         .option-label { 
-            width: 35px; height: 35px; border: 1px solid #ddd; border-radius: 50%; 
+            width: 30px; height: 30px; border: 1px solid #ddd; border-radius: 50%; 
             display: flex; align-items: center; justify-content: center; 
             margin-right: 15px; font-weight: bold; flex-shrink: 0;
         }
-        .correct { background: #e8f5e9 !important; border-color: #2e7d32 !important; color: #2e7d32; }
-        .wrong { background: #ffebee !important; border-color: #c62828 !important; color: #c62828; }
+        .option-btn:hover:not([disabled]) { border-color: var(--primary-color); background: #f7faff; }
+        .correct { background: #e8f5e9 !important; border-color: var(--success) !important; color: var(--success); }
+        .wrong { background: #ffebee !important; border-color: var(--danger) !important; color: var(--danger); }
 
-        /* Style Đúng Sai */
+        /* True/False CSS */
         .tf-row { display: flex; align-items: center; justify-content: space-between; padding: 15px; border: 1px solid #eee; border-radius: 10px; margin-bottom: 10px; }
-        .btn-tf { width: 60px; height: 35px; border-radius: 20px; border: 1px solid #ddd; background: #fff; font-size: 13px; margin-left: 5px; }
-        .tf-active-true { background: #2e7d32 !important; color: #fff !important; }
-        .tf-active-false { background: #c62828 !important; color: #fff !important; }
+        .tf-text { flex: 1; padding-right: 20px; }
+        .tf-btns { display: flex; gap: 10px; }
+        .btn-tf { width: 70px; height: 38px; border-radius: 20px; border: 1px solid #ddd; background: #fff; font-weight: 600; font-size: 14px; transition: 0.2s; }
+        .btn-tf.selected-true { background: var(--success); color: white; border-color: var(--success); }
+        .btn-tf.selected-false { background: var(--danger); color: white; border-color: var(--danger); }
+        .tf-row.row-correct { border: 2px solid var(--success); background: #f1f8f1; }
+        .tf-row.row-wrong { border: 2px solid var(--danger); background: #fff5f5; }
 
-        /* Style Kéo thả */
-        .drop-zone { border-bottom: 2px solid var(--primary-color); color: var(--primary-color); font-weight: bold; padding: 0 10px; min-width: 60px; display: inline-block; text-align: center; }
-        
-        /* Nav Câu hỏi */
         .q-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; padding: 15px; }
-        .q-num-item { 
-            height: 40px; border: 1px solid #ddd; border-radius: 8px; 
-            display: flex; align-items: center; justify-content: center; font-size: 14px; 
-        }
-        .q-active { border: 2px solid var(--primary-color); color: var(--primary-color); font-weight: bold; }
-        .q-done { background: #e3f2fd; color: #1976d2; }
-
+        .q-num-item { height: 40px; border: 1px solid #ddd; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .q-num-item.active { border: 2px solid var(--primary-color); color: var(--primary-color); font-weight: bold; }
+        .q-num-item.done { background: #e3f2fd; border-color: #3498db; }
+        
         .hidden { display: none; }
-        #timer { font-size: 1.6rem; color: #d32f2f; font-weight: bold; }
+        #timer { font-size: 1.5rem; color: #d32f2f; font-weight: 800; }
     </style>
 </head>
 <body>
 
 <div class="container mt-5" id="auth-screen">
     <div class="row justify-content-center">
-        <div class="col-md-5 card p-5 text-center shadow">
-            <h2 class="fw-bold mb-4">SmartQuiz 🚀</h2>
-            <div id="exam-status" class="alert alert-info small">Đang kiểm tra đề thi...</div>
+        <div class="col-md-5 card p-5 text-center">
+            <h2 class="fw-bold mb-4">SmartQuiz Pro 🚀</h2>
+            <div id="exam-status" class="alert alert-info">Đang kiểm tra đề thi...</div>
             <div id="auth-form" class="hidden text-start">
-                <input type="text" id="name" class="form-control mb-3" placeholder="Họ và Tên">
-                <input type="text" id="class" class="form-control mb-4" placeholder="Lớp">
-                <button onclick="startQuiz()" class="btn btn-primary w-100 py-2 fw-bold">VÀO THI NGAY</button>
+                <div class="mb-3">
+                    <label class="form-label">Họ và Tên</label>
+                    <input type="text" id="student-name" class="form-control" placeholder="Nhập tên của bạn">
+                </div>
+                <div class="mb-4">
+                    <label class="form-label">Lớp</label>
+                    <input type="text" id="student-class" class="form-control" placeholder="Ví dụ: 12A1">
+                </div>
+                <button onclick="startQuiz()" class="btn btn-primary w-100 py-2 fw-bold">BẮT ĐẦU THI NGAY</button>
             </div>
         </div>
     </div>
@@ -66,148 +73,199 @@
 
 <div id="quiz-wrapper" class="quiz-wrapper hidden">
     <div class="main-quiz">
-        <div class="card p-4">
+        <div class="card q-card">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h5 class="text-muted fw-bold" id="q-type-label">PHẦN I. TRẮC NGHIỆM</h5>
+                <span class="badge bg-dark px-3 py-2" id="exam-label">ĐANG THI</span>
                 <div id="timer">15:00</div>
             </div>
-            <h4 id="q-text" class="mb-5 fw-bold" style="line-height: 1.6;"></h4>
+            <h4 id="q-text" class="fw-bold mb-4" style="line-height: 1.5;"></h4>
             <div id="options-box"></div>
+            <div id="action-box" class="mt-4 hidden">
+                <button id="btn-next" class="btn btn-primary btn-lg w-100" onclick="handleNext()">XÁC NHẬN & TIẾP TỤC</button>
+            </div>
         </div>
     </div>
 
     <div class="side-panel">
-        <div class="card mb-3">
-            <div class="card-header bg-white fw-bold py-3 text-center">Danh sách câu hỏi</div>
+        <div class="card">
+            <div class="card-header bg-white fw-bold py-3">Tiến độ bài làm</div>
             <div class="q-list" id="q-nav-list"></div>
-            <div class="p-3"><button class="btn btn-danger w-100 fw-bold" onclick="finish()">NỘP BÀI</button></div>
         </div>
     </div>
 </div>
 
 <div id="result-screen" class="container mt-5 hidden">
-    <div class="row justify-content-center">
-        <div class="col-md-8 card p-5 text-center">
-            <h1 class="display-4 fw-bold">Kết quả: <span id="final-score" class="text-primary">0</span>đ</h1>
-            <p class="h5 text-muted mb-5" id="stat-detail">Đúng: 0 | Sai: 0</p>
-            <h5 class="fw-bold mb-3 text-start">🏆 Bảng Xếp Hạng</h5>
-            <table class="table table-bordered"><tbody id="rank-list"></tbody></table>
-            <button onclick="location.reload()" class="btn btn-outline-secondary mt-4">Trang chủ</button>
+    <div class="row justify-content-center text-center">
+        <div class="col-md-6 card p-5">
+            <h1 class="display-3 fw-bold text-primary" id="final-score">0.0</h1>
+            <p class="h4 mb-4">Điểm của bạn</p>
+            <div id="stat-detail" class="mb-4 text-muted"></div>
+            <button onclick="location.reload()" class="btn btn-outline-secondary px-5">Thoát</button>
         </div>
     </div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
 <script>
     const firebaseConfig = { 
-        apiKey: "AIzaSyBZngQdNGeFNbxz35hdZKuWxqxIxJVKaAA",
-        authDomain: "quizapp-f4f00.firebaseapp.com",
-        projectId: "quizapp-f4f00",
-        storageBucket: "quizapp-f4f00.firebasestorage.app",
-        messagingSenderId: "852224211635",
-        appId: "1:852224211635:web:ef5efe4e2ed092a4960ec6" 
+       apiKey: "AIzaSyBZngQdNGeFNbxz35hdZKuWxqxIxJVKaAA",
+  authDomain: "quizapp-f4f00.firebaseapp.com",
+  projectId: "quizapp-f4f00",
+  storageBucket: "quizapp-f4f00.firebasestorage.app",
+  messagingSenderId: "852224211635",
+  appId: "1:852224211635:web:ef5efe4e2ed092a4960ec6"
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    let activeEx = null, questions = [], curIdx = 0, score = 0, timer;
+    let activeExam = null, questions = [], curIdx = 0, score = 0, timer, userChoices = [];
 
+    // Tự động tải đề thi đang mở
     db.collection("exams").where("isActive", "==", true).limit(1).onSnapshot(snap => {
-        if(snap.empty) return;
-        activeEx = {id: snap.docs[0].id, ...snap.docs[0].data()};
+        if(snap.empty) {
+            document.getElementById('exam-status').innerText = "Hiện không có đề thi nào đang mở.";
+            return;
+        }
+        activeExam = {id: snap.docs[0].id, ...snap.docs[0].data()};
         document.getElementById('exam-status').classList.add('hidden');
         document.getElementById('auth-form').classList.remove('hidden');
-        db.collection("questions").where("examId", "==", activeEx.id).get().then(q => {
-            questions = q.docs.map(d => d.data());
+        
+        db.collection("questions").where("examId", "==", activeExam.id).orderBy("order").get().then(qSnap => {
+            questions = qSnap.docs.map(d => ({id: d.id, ...d.data()}));
             renderNav();
         });
     });
 
     function renderNav() {
-        const nav = document.getElementById('q-nav-list'); nav.innerHTML = '';
-        questions.forEach((_, i) => nav.innerHTML += `<div class="q-num-item" id="nav-${i}">${i+1}</div>`);
+        const nav = document.getElementById('q-nav-list');
+        nav.innerHTML = questions.map((_, i) => `<div class="q-num-item" id="nav-${i}">${i+1}</div>`).join('');
     }
 
     function startQuiz() {
-        if(!document.getElementById('name').value) return alert("Nhập tên!");
+        if(!document.getElementById('student-name').value) return alert("Vui lòng nhập tên!");
         document.getElementById('auth-screen').classList.add('hidden');
         document.getElementById('quiz-wrapper').classList.remove('hidden');
-        showQ(); startTimer(15);
+        showQuestion();
+        startTimer(15);
     }
 
-    function showQ() {
+    function showQuestion() {
         const q = questions[curIdx];
-        document.getElementById('q-text').innerText = q.q;
-        const box = document.getElementById('options-box'); box.innerHTML = '';
-        document.querySelectorAll('.q-num-item').forEach(el => el.classList.remove('q-active'));
-        document.getElementById(`nav-${curIdx}`).classList.add('q-active');
+        const box = document.getElementById('options-box');
+        const actionBox = document.getElementById('action-box');
+        document.getElementById('q-text').innerText = `Câu ${curIdx+1}: ${q.q}`;
+        box.innerHTML = '';
+        actionBox.classList.add('hidden');
 
-        if (q.type === "choice") {
-            document.getElementById('q-type-label').innerText = "PHẦN I. TRẮC NGHIỆM";
-            ['A','B','C','D'].forEach((l, i) => {
-                const b = document.createElement('button'); b.className = 'option-btn';
-                b.innerHTML = `<span class="option-label">${l}</span> <span>${q.a[i]}</span>`;
-                b.onclick = () => {
-                    document.querySelectorAll('.option-btn').forEach(btn => btn.disabled = true);
-                    if(i === q.correct) { b.classList.add('correct'); score++; } else { b.classList.add('wrong'); }
-                    document.getElementById(`nav-${curIdx}`).classList.add('q-done');
-                    setTimeout(() => { curIdx++; if(curIdx < questions.length) showQ(); else finish(); }, 1000);
-                };
-                box.appendChild(b);
-            });
-        } else if (q.type === "tf") {
-            document.getElementById('q-type-label').innerText = "PHẦN II. ĐÚNG/SAI";
-            q.items.forEach((item, i) => {
-                const row = document.createElement('div'); row.className = 'tf-row';
-                row.innerHTML = `<div><b>${item.label})</b> ${item.text}</div>
-                    <div><button class="btn-tf" onclick="checkTF(this, '${item.correct}', 'Đúng')">Đúng</button>
-                    <button class="btn-tf" onclick="checkTF(this, '${item.correct}', 'Sai')">Sai</button></div>`;
+        document.querySelectorAll('.q-num-item').forEach(el => el.classList.remove('active'));
+        document.getElementById(`nav-${curIdx}`).classList.add('active');
+
+        if(q.type === "tf") {
+            // Hiển thị Đúng/Sai
+            actionBox.classList.remove('hidden');
+            userChoices[curIdx] = [null, null, null, null];
+            q.options.forEach((opt, i) => {
+                const row = document.createElement('div');
+                row.className = 'tf-row';
+                row.id = `tf-row-${i}`;
+                row.innerHTML = `
+                    <div class="tf-text"><b>${String.fromCharCode(97+i)})</b> ${opt}</div>
+                    <div class="tf-btns">
+                        <button class="btn-tf" onclick="selectTF(${i}, true, this)">Đúng</button>
+                        <button class="btn-tf" onclick="selectTF(${i}, false, this)">Sai</button>
+                    </div>`;
                 box.appendChild(row);
             });
-            box.innerHTML += `<button class="btn btn-primary w-100 mt-4" onclick="next()">TIẾP THEO</button>`;
+        } else {
+            // Hiển thị MCQ
+            const labels = ['A', 'B', 'C', 'D'];
+            q.a.forEach((opt, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerHTML = `<span class="option-label">${labels[i]}</span> <span>${opt}</span>`;
+                btn.onclick = () => checkMCQ(i, btn);
+                box.appendChild(btn);
+            });
         }
     }
 
-    function checkTF(btn, cor, user) {
-        btn.parentElement.querySelectorAll('button').forEach(b => b.disabled = true);
-        if(user === cor) { btn.classList.add('tf-active-true'); score += 0.25; } 
-        else { btn.classList.add('tf-active-false'); }
+    function selectTF(idx, val, btn) {
+        const parent = btn.parentElement;
+        parent.querySelectorAll('.btn-tf').forEach(b => b.classList.remove('selected-true', 'selected-false'));
+        btn.classList.add(val ? 'selected-true' : 'selected-false');
+        userChoices[curIdx][idx] = val;
     }
 
-    function next() {
-        document.getElementById(`nav-${curIdx}`).classList.add('q-done');
-        curIdx++; if(curIdx < questions.length) showQ(); else finish();
+    function checkMCQ(choice, btn) {
+        const q = questions[curIdx];
+        const allBtns = document.querySelectorAll('.option-btn');
+        allBtns.forEach(b => b.disabled = true);
+
+        if(choice === q.correct) {
+            btn.classList.add('correct');
+            score++;
+        } else {
+            btn.classList.add('wrong');
+            allBtns[q.correct].classList.add('correct');
+        }
+        
+        document.getElementById(`nav-${curIdx}`).classList.add('done');
+        setTimeout(handleNext, 1200);
     }
 
-    function startTimer(m) {
-        let s = m * 60;
+    function handleNext() {
+        const q = questions[curIdx];
+        if(q.type === "tf") {
+            // Chấm điểm câu Đúng/Sai (Đúng cả 4 mới được điểm - hoặc tùy chỉnh)
+            let isCorrect = true;
+            q.options.forEach((_, i) => {
+                const row = document.getElementById(`tf-row-${i}`);
+                if(userChoices[curIdx][i] !== q.correct[i]) {
+                    isCorrect = false;
+                    row.classList.add('row-wrong');
+                } else {
+                    row.classList.add('row-correct');
+                }
+            });
+            if(isCorrect) score++;
+            document.getElementById(`nav-${curIdx}`).classList.add('done');
+            setTimeout(() => {
+                curIdx++;
+                if(curIdx < questions.length) showQuestion(); else finish();
+            }, 1500);
+        } else {
+            curIdx++;
+            if(curIdx < questions.length) showQuestion(); else finish();
+        }
+    }
+
+    function startTimer(mins) {
+        let sec = mins * 60;
         timer = setInterval(() => {
-            document.getElementById('timer').innerText = `${Math.floor(s/60)}:${s%60<10?'0':''}${s%60}`;
-            if(s-- <= 0) finish();
+            let m = Math.floor(sec/60), s = sec%60;
+            document.getElementById('timer').innerText = `${m}:${s<10?'0':''}${s}`;
+            if(sec-- <= 0) { clearInterval(timer); finish(); }
         }, 1000);
     }
 
     function finish() {
         clearInterval(timer);
-        const total = questions.length;
-        const g10 = ((score/total)*10).toFixed(2);
+        const finalGrade = ((score / questions.length) * 10).toFixed(2);
         document.getElementById('quiz-wrapper').classList.add('hidden');
         document.getElementById('result-screen').classList.remove('hidden');
-        document.getElementById('final-score').innerText = g10;
-        const name = document.getElementById('name').value;
-        db.collection("results").add({name, class: document.getElementById('class').value, examId: activeEx.id, score, wrong: total-score, grade10: g10, time: new Date()})
-        .then(() => loadRanking(activeEx.id, name));
-    }
+        document.getElementById('final-score').innerText = finalGrade;
+        document.getElementById('stat-detail').innerText = `Bạn đã làm đúng ${score}/${questions.length} câu.`;
 
-    function loadRanking(id, myName) {
-        db.collection("results").where("examId", "==", id).orderBy("score", "desc").limit(10).onSnapshot(snap => {
-            const list = document.getElementById('rank-list'); list.innerHTML = '';
-            snap.docs.forEach((d, i) => {
-                const data = d.data();
-                list.innerHTML += `<tr class="${data.name === myName?'table-warning':''}"><td>${i+1}</td><td>${data.name}</td><td>${data.grade10}đ</td></tr>`;
-            });
+        // Lưu kết quả vào Firebase
+        db.collection("results").add({
+            name: document.getElementById('student-name').value,
+            class: document.getElementById('student-class').value,
+            examId: activeExam.name,
+            score: score,
+            grade10: finalGrade,
+            time: new Date()
         });
     }
 </script>
