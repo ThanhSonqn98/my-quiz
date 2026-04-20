@@ -9,22 +9,17 @@
     <style>
         :root { --dark: #1e293b; --primary: #3b82f6; --light: #f8fafc; }
         body { background: var(--light); font-family: 'Inter', sans-serif; }
-        
         .sidebar { background: var(--dark); height: 100vh; color: white; padding: 25px; position: fixed; width: 260px; z-index: 100; box-shadow: 4px 0 10px rgba(0,0,0,0.1); }
         .sidebar h4 { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 40px; color: #fff; }
         .main-content { margin-left: 260px; padding: 40px; }
-        
         .card { border: none; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .hidden { display: none; }
-        
-        .nav-link { color: #94a3b8; font-weight: 500; padding: 12px 15px; border-radius: 8px; margin-bottom: 8px; transition: 0.2s; }
+        .nav-link { color: #94a3b8; font-weight: 500; padding: 12px 15px; border-radius: 8px; margin-bottom: 8px; transition: 0.2s; cursor: pointer; }
         .nav-link:hover { background: rgba(255,255,255,0.05); color: #fff; }
         .nav-link.active { background: var(--primary); color: white; }
-        
         .status-badge { padding: 4px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; }
         .bg-active { background: #dcfce7; color: #166534; }
         .bg-stopped { background: #fee2e2; color: #991b1b; }
-        
         .btn-success { background: var(--primary); border: none; }
         .table thead { background: #f1f5f9; }
         .table th { font-weight: 600; color: #475569; border: none; }
@@ -47,9 +42,9 @@
     <div class="sidebar">
         <h4>SMARTQUIZ PRO</h4>
         <div class="nav flex-column">
-            <div class="nav-link active" id="btn-scores" onclick="switchTab('tab-scores')">Bảng xếp hạng</div>
-            <div class="nav-link" id="btn-exams" onclick="switchTab('tab-exams')">Quản lý đề thi</div>
-            <div class="nav-link" id="btn-upload" onclick="switchTab('tab-upload')">Tải đề Word</div>
+            <div class="nav-link active" onclick="switchTab('tab-scores')">Bảng xếp hạng</div>
+            <div class="nav-link" onclick="switchTab('tab-exams')">Quản lý đề thi</div>
+            <div class="nav-link" onclick="switchTab('tab-upload')">Tải đề Word</div>
             <div class="nav-link text-danger mt-5" onclick="location.reload()">Đăng xuất</div>
         </div>
     </div>
@@ -74,7 +69,7 @@
             <h3 class="fw-bold mb-4">Danh sách đề thi</h3>
             <div class="card p-3">
                 <table class="table align-middle">
-                    <thead><tr><th>Tên đề</th><th>Ngày tạo</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+                    <thead><tr><th>Tên đề</th><th>Thời gian</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
                     <tbody id="exam-list"></tbody>
                 </table>
             </div>
@@ -87,6 +82,7 @@
                     <b>Cấu trúc file:</b> Câu 1: ... A. B. C. D. -> Ngăn cách bằng chữ <b>Hết</b> -> Đáp án: 1.A, 2.B...
                 </div>
                 <input type="text" id="exam-name" class="form-control mb-3" placeholder="Tên đề thi">
+                <input type="number" id="exam-time" class="form-control mb-3" placeholder="Thời gian làm bài (phút)" value="15">
                 <div class="input-group mb-3">
                     <input type="file" id="file-picker" class="form-control" accept=".docx">
                     <button class="btn btn-success px-4" onclick="processWordFile()">Tải lên</button>
@@ -102,7 +98,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
 
 <script>
-    // --- FIREBASE CONFIG (GIỮ NGUYÊN) ---
     const firebaseConfig = { 
         apiKey: "AIzaSyBZngQdNGeFNbxz35hdZKuWxqxIxJVKaAA",
         authDomain: "quizapp-f4f00.firebaseapp.com",
@@ -156,7 +151,7 @@
             const list = document.getElementById('exam-list'); list.innerHTML = '';
             snap.forEach(doc => {
                 const ex = doc.data();
-                list.innerHTML += `<tr><td><b>${ex.name}</b></td><td>${ex.createdAt.toDate().toLocaleDateString()}</td><td><span class="status-badge ${ex.isActive?'bg-active':'bg-stopped'}">${ex.isActive?'Mở':'Đóng'}</span></td><td><button class="btn btn-sm ${ex.isActive?'btn-warning':'btn-success'}" onclick="toggleExam('${doc.id}', ${!ex.isActive})">${ex.isActive?'Dừng':'Mở'}</button> <button class="btn btn-sm btn-danger" onclick="deleteExam('${doc.id}')">Xoá</button></td></tr>`;
+                list.innerHTML += `<tr><td><b>${ex.name}</b></td><td>${ex.timeLimit || 15} phút</td><td><span class="status-badge ${ex.isActive?'bg-active':'bg-stopped'}">${ex.isActive?'Mở':'Đóng'}</span></td><td><button class="btn btn-sm ${ex.isActive?'btn-warning':'btn-success'}" onclick="toggleExam('${doc.id}', ${!ex.isActive})">${ex.isActive?'Dừng':'Mở'}</button> <button class="btn btn-sm btn-danger ms-1" onclick="deleteExam('${doc.id}')">Xoá</button></td></tr>`;
             });
         });
     }
@@ -178,14 +173,15 @@
 
     async function processWordFile() {
         const name = document.getElementById('exam-name').value;
+        const timeLimit = parseInt(document.getElementById('exam-time').value);
         const file = document.getElementById('file-picker').files[0];
-        if(!name || !file) return alert("Thiếu thông tin!");
+        if(!name || !file || isNaN(timeLimit)) return alert("Thiếu thông tin!");
         mammoth.extractRawText({arrayBuffer: await file.arrayBuffer()}).then(async result => {
             const parts = result.value.split(/Hết/i);
             if(parts.length < 2) return alert("Thiếu chữ 'Hết'!");
             const ansMap = {}; const matches = parts[1].matchAll(/(\d+)[\.\s]*([A-D])/gi);
             for (const m of matches) ansMap[m[1]] = m[2].toUpperCase().charCodeAt(0) - 65;
-            const examDoc = await db.collection("exams").add({name, createdAt: new Date(), isActive: false});
+            const examDoc = await db.collection("exams").add({name, timeLimit, createdAt: new Date(), isActive: false});
             const blocks = parts[0].split(/Câu \d+[:.]/g).filter(b => b.trim().length > 10);
             blocks.forEach((block, index) => {
                 const lines = block.split(/[A-D][.:]/g);
