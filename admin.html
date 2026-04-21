@@ -25,6 +25,28 @@
         .table th { font-weight: 600; color: #475569; border: none; }
         .upload-guide code { background: #e2e8f0; padding: 2px 6px; border-radius: 6px; }
         .log-line { white-space: pre-wrap; }
+        .student-link { border: none; background: transparent; color: #2563eb; font-weight: 700; padding: 0; text-decoration: underline; cursor: pointer; }
+        .student-link:hover { color: #1d4ed8; }
+        .result-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); z-index: 1200; display: flex; align-items: center; justify-content: center; padding: 24px; }
+        .result-modal { width: min(1100px, 100%); max-height: 90vh; overflow: hidden; border-radius: 18px; background: #fff; box-shadow: 0 20px 60px rgba(0,0,0,0.2); display: flex; flex-direction: column; }
+        .result-modal-header { padding: 22px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+        .result-modal-body { padding: 20px 24px 24px; overflow: auto; background: #f8fafc; }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 18px; }
+        .summary-item { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px 14px; }
+        .summary-label { font-size: 0.8rem; color: #64748b; text-transform: uppercase; font-weight: 700; }
+        .summary-value { font-size: 1.1rem; font-weight: 800; color: #0f172a; }
+        .answer-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 18px; margin-bottom: 16px; }
+        .answer-card.correct-card { border-color: #86efac; background: #f0fdf4; }
+        .answer-card.wrong-card { border-color: #fca5a5; background: #fef2f2; }
+        .answer-badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }
+        .badge-correct { background: #dcfce7; color: #166534; }
+        .badge-wrong { background: #fee2e2; color: #991b1b; }
+        .option-review { border: 1px solid #cbd5e1; border-radius: 12px; padding: 10px 12px; margin-top: 8px; background: #fff; }
+        .option-review.correct-option { border-color: #16a34a; background: #f0fdf4; }
+        .option-review.wrong-option { border-color: #dc2626; background: #fef2f2; }
+        .statement-review { border: 1px solid #cbd5e1; border-radius: 12px; padding: 12px; margin-top: 10px; background: #fff; }
+        .statement-review.correct-option { border-color: #16a34a; background: #f0fdf4; }
+        .statement-review.wrong-option { border-color: #dc2626; background: #fef2f2; }
     </style>
 </head>
 <body>
@@ -98,6 +120,21 @@
     </div>
 </div>
 
+<div id="result-viewer" class="result-overlay hidden">
+    <div class="result-modal">
+        <div class="result-modal-header">
+            <div>
+                <h4 class="fw-bold mb-1">Chi tiết bài làm học sinh</h4>
+                <div id="result-viewer-subtitle" class="text-muted small">Đang tải dữ liệu...</div>
+            </div>
+            <button class="btn btn-outline-secondary" onclick="closeResultViewer()">Đóng</button>
+        </div>
+        <div id="result-viewer-content" class="result-modal-body">
+            <div class="text-muted">Đang tải dữ liệu...</div>
+        </div>
+    </div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
@@ -145,10 +182,128 @@
             const list = document.getElementById('score-list'); list.innerHTML = ''; let rank = 1;
             snap.forEach(doc => {
                 const d = doc.data();
-                list.innerHTML += `<tr><td><b class="fs-5">#${rank}</b></td><td><b>${d.name}</b></td><td>${d.class}</td><td><span class="text-success">${d.score}Đ</span> - <span class="text-danger">${d.wrong||0}S</span></td><td><span class="badge bg-primary fs-6">${d.grade10}</span></td><td>${d.time.toDate().toLocaleTimeString()}</td></tr>`;
+                list.innerHTML += `<tr>
+                    <td><b class="fs-5">#${rank}</b></td>
+                    <td><button class="student-link" onclick="viewStudentResult('${doc.id}')">${escapeHtml(d.name || 'Không rõ tên')}</button></td>
+                    <td>${escapeHtml(d.class || '')}</td>
+                    <td><span class="text-success">${d.score || 0}Đ</span> - <span class="text-danger">${d.wrong||0}S</span></td>
+                    <td><span class="badge bg-primary fs-6">${d.grade10 || '0.00'}</span></td>
+                    <td>${d.time && d.time.toDate ? d.time.toDate().toLocaleTimeString() : ''}</td>
+                </tr>`;
                 rank++;
             });
+            if (!snap.size) list.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Chưa có bài làm nào cho đề này.</td></tr>';
         });
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function closeResultViewer() {
+        document.getElementById('result-viewer').classList.add('hidden');
+    }
+
+    function renderMcqAttempt(detail, index) {
+        const labels = ['A', 'B', 'C', 'D'];
+        const selectedIndex = Number.isInteger(detail.selectedOriginalIndex) ? detail.selectedOriginalIndex : -1;
+        const correctIndex = Number.isInteger(detail.correctIndex) ? detail.correctIndex : -1;
+        const options = Array.isArray(detail.options) ? detail.options : [];
+        const optionHtml = options.map((opt, optIndex) => {
+            const classes = ['option-review'];
+            if (optIndex === correctIndex) classes.push('correct-option');
+            if (optIndex === selectedIndex && selectedIndex !== correctIndex) classes.push('wrong-option');
+            const picked = optIndex === selectedIndex ? '<span class="ms-2 badge text-bg-secondary">HS chọn</span>' : '';
+            const correct = optIndex === correctIndex ? '<span class="ms-2 badge text-bg-success">Đáp án đúng</span>' : '';
+            return `<div class="${classes.join(' ')}"><b>${labels[optIndex] || '?'}. </b>${escapeHtml(opt)} ${picked} ${correct}</div>`;
+        }).join('');
+        return `<div class="answer-card ${detail.isCorrect ? 'correct-card' : 'wrong-card'}">
+            <div class="d-flex justify-content-between align-items-start gap-3">
+                <div>
+                    <div class="text-muted small mb-1">${escapeHtml(detail.section || 'Phần')} • Câu ${detail.number || (index + 1)}</div>
+                    <div class="fw-bold mb-2">${escapeHtml(detail.question || '')}</div>
+                </div>
+                <span class="answer-badge ${detail.isCorrect ? 'badge-correct' : 'badge-wrong'}">${detail.isCorrect ? 'Đúng' : 'Sai'}</span>
+            </div>
+            ${optionHtml}
+        </div>`;
+    }
+
+    function renderTfAttempt(detail, index) {
+        const statements = Array.isArray(detail.statements) ? detail.statements : [];
+        const selections = Array.isArray(detail.selectedStatements) ? detail.selectedStatements : [];
+        const corrects = Array.isArray(detail.correctStatements) ? detail.correctStatements : [];
+        const labels = ['a', 'b', 'c', 'd'];
+        const rows = statements.map((statement, stIndex) => {
+            const selected = typeof selections[stIndex] === 'boolean' ? (selections[stIndex] ? 'Đúng' : 'Sai') : 'Chưa chọn';
+            const correct = typeof corrects[stIndex] === 'boolean' ? (corrects[stIndex] ? 'Đúng' : 'Sai') : '';
+            const ok = selections[stIndex] === corrects[stIndex];
+            return `<div class="statement-review ${ok ? 'correct-option' : 'wrong-option'}">
+                <div><b>${labels[stIndex]})</b> ${escapeHtml(statement)}</div>
+                <div class="mt-2 small"><b>Học sinh chọn:</b> ${selected} ${ok ? '✅' : '❌'}</div>
+                <div class="small"><b>Đáp án đúng:</b> ${correct}</div>
+            </div>`;
+        }).join('');
+        return `<div class="answer-card ${(detail.scoreEarned || 0) === (detail.weight || statements.length || 0) ? 'correct-card' : 'wrong-card'}">
+            <div class="d-flex justify-content-between align-items-start gap-3">
+                <div>
+                    <div class="text-muted small mb-1">${escapeHtml(detail.section || 'Phần')} • Câu ${detail.number || (index + 1)}</div>
+                    <div class="fw-bold mb-2">${escapeHtml(detail.question || '')}</div>
+                </div>
+                <span class="answer-badge ${(detail.scoreEarned || 0) > 0 ? 'badge-correct' : 'badge-wrong'}">${detail.scoreEarned || 0}/${detail.weight || statements.length || 0} ý đúng</span>
+            </div>
+            ${rows}
+        </div>`;
+    }
+
+    async function viewStudentResult(resultId) {
+        const viewer = document.getElementById('result-viewer');
+        const content = document.getElementById('result-viewer-content');
+        const subtitle = document.getElementById('result-viewer-subtitle');
+        viewer.classList.remove('hidden');
+        subtitle.innerText = 'Đang tải dữ liệu bài làm...';
+        content.innerHTML = '<div class="text-muted">Đang tải dữ liệu bài làm...</div>';
+
+        try {
+            const selectedExam = document.getElementById('filter-exam');
+            const examName = selectedExam.options[selectedExam.selectedIndex]?.text || 'Đề thi';
+            const resultDoc = await db.collection('results').doc(resultId).get();
+            if (!resultDoc.exists) throw new Error('Không tìm thấy bài làm học sinh.');
+            const data = resultDoc.data();
+            const details = Array.isArray(data.attemptDetails) ? data.attemptDetails : [];
+            subtitle.innerText = `${data.name || 'Không rõ tên'} • Lớp ${data.class || ''} • ${examName}`;
+
+            const summaryHtml = `
+                <div class="summary-grid">
+                    <div class="summary-item"><div class="summary-label">Học sinh</div><div class="summary-value">${escapeHtml(data.name || '')}</div></div>
+                    <div class="summary-item"><div class="summary-label">Lớp</div><div class="summary-value">${escapeHtml(data.class || '')}</div></div>
+                    <div class="summary-item"><div class="summary-label">Điểm 10</div><div class="summary-value">${escapeHtml(data.grade10 || '0.00')}</div></div>
+                    <div class="summary-item"><div class="summary-label">Đúng / Sai</div><div class="summary-value">${data.score || 0} / ${data.wrong || 0}</div></div>
+                    <div class="summary-item"><div class="summary-label">Tổng lượt chấm</div><div class="summary-value">${data.totalItems || 0}</div></div>
+                    <div class="summary-item"><div class="summary-label">Nộp bài lúc</div><div class="summary-value">${data.time && data.time.toDate ? data.time.toDate().toLocaleString() : ''}</div></div>
+                </div>`;
+
+            if (!details.length) {
+                content.innerHTML = `${summaryHtml}<div class="alert alert-warning">Bài làm này chưa có dữ liệu chi tiết đáp án. Hãy cho học sinh làm lại bằng phiên bản mới để lưu toàn bộ lựa chọn.</div>`;
+                return;
+            }
+
+            const answersHtml = details.map((detail, index) => detail.type === 'tf'
+                ? renderTfAttempt(detail, index)
+                : renderMcqAttempt(detail, index)
+            ).join('');
+
+            content.innerHTML = `${summaryHtml}${answersHtml}`;
+        } catch (err) {
+            console.error(err);
+            subtitle.innerText = 'Không thể tải bài làm';
+            content.innerHTML = `<div class="alert alert-danger">${escapeHtml(err.message || 'Đã xảy ra lỗi.')}</div>`;
+        }
     }
 
     function loadExams() {
@@ -297,6 +452,8 @@
 
 		const sectionI = partIMatch[0].replace(/^[\s\S]*?Phần\s*I[^\n]*\n?/i, '').trim();
 		const sectionII = partIIMatch[0].replace(/^[\s\S]*?Phần\s*II[^\n]*\n?/i, '').trim();
+        const partIHeader = (partIMatch[0].match(/^.*Phần\s*I[^\n]*/i) || ['Phần I'])[0].trim();
+		const partIIHeader = (partIIMatch[0].match(/^.*Phần\s*II[^\n]*/i) || ['Phần II'])[0].trim();
         const { mcqAnswers, tfAnswers } = parseAnswerSections(answerText);
         const mcqQuestions = parseMcqSection(sectionI, mcqAnswers);
         const tfQuestions = parseTrueFalseSection(sectionII, tfAnswers);
