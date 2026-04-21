@@ -23,7 +23,8 @@
         .btn-success { background: var(--primary); border: none; }
         .table thead { background: #f1f5f9; }
         .table th { font-weight: 600; color: #475569; border: none; }
-        .preview-box { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; max-height: 200px; overflow: auto; }
+        .upload-guide code { background: #e2e8f0; padding: 2px 6px; border-radius: 6px; }
+        .log-line { white-space: pre-wrap; }
     </style>
 </head>
 <body>
@@ -43,9 +44,9 @@
     <div class="sidebar">
         <h4>SMARTQUIZ PRO</h4>
         <div class="nav flex-column">
-            <div class="nav-link active" onclick="switchTab('tab-scores', event)">Bảng xếp hạng</div>
-            <div class="nav-link" onclick="switchTab('tab-exams', event)">Quản lý đề thi</div>
-            <div class="nav-link" onclick="switchTab('tab-upload', event)">Tải đề Word</div>
+            <div class="nav-link active" onclick="switchTab('tab-scores')">Bảng xếp hạng</div>
+            <div class="nav-link" onclick="switchTab('tab-exams')">Quản lý đề thi</div>
+            <div class="nav-link" onclick="switchTab('tab-upload')">Tải đề Word</div>
             <div class="nav-link text-danger mt-5" onclick="location.reload()">Đăng xuất</div>
         </div>
     </div>
@@ -70,7 +71,7 @@
             <h3 class="fw-bold mb-4">Danh sách đề thi</h3>
             <div class="card p-3">
                 <table class="table align-middle">
-                    <thead><tr><th>Tên đề</th><th>Tiêu đề phần</th><th>Thời gian</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+                    <thead><tr><th>Tên đề</th><th>Thời gian</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
                     <tbody id="exam-list"></tbody>
                 </table>
             </div>
@@ -79,13 +80,11 @@
         <div id="tab-upload" class="tab-content hidden">
             <h3 class="fw-bold mb-4">Tải đề thi mới</h3>
             <div class="card p-4">
-                <div class="alert alert-info py-3 small mb-3">
-                    <div><b>File Word hỗ trợ:</b></div>
-                    <div>- <b>Phần I. Trắc nghiệm</b> hoặc <b>Phần I Trắc nghiệm</b></div>
-                    <div>- <b>Phần II. Đúng Sai</b> hoặc <b>Phần II Đúng Sai</b></div>
-                    <div>- Cuối file có chữ <b>Hết</b></div>
-                    <div>- Đáp án trắc nghiệm: <b>1.A, 2.B...</b></div>
-                    <div>- Đáp án đúng sai: <b>1.ĐSĐS, 2.SĐĐ...</b></div>
+                <div class="alert alert-info py-3 small upload-guide">
+                    <div><b>Định dạng mới của file Word:</b></div>
+                    <div class="mt-2"><b>Phần I. Trắc nghiệm</b> bắt đầu từ <code>Câu 1.</code>, mỗi câu có 4 lựa chọn <code>A.</code> <code>B.</code> <code>C.</code> <code>D.</code></div>
+                    <div class="mt-1"><b>Phần II. Chọn Đúng / Sai</b> bắt đầu từ <code>Câu 1. (Đúng Sai)</code> và có các ý con <code>a)</code>, <code>b)</code>, <code>c)</code>, <code>d)</code></div>
+                    <div class="mt-1">Phần đáp án đặt sau chữ <code>Hết</code>. Ví dụ: <code>Phần I: 1.A, 2.C</code> và <code>Phần II: 1.ĐSĐS, 2.SĐĐS</code></div>
                 </div>
                 <input type="text" id="exam-name" class="form-control mb-3" placeholder="Tên đề thi">
                 <input type="number" id="exam-time" class="form-control mb-3" placeholder="Thời gian làm bài (phút)" value="15">
@@ -94,7 +93,6 @@
                     <button class="btn btn-success px-4" onclick="processWordFile()">Tải lên</button>
                 </div>
                 <div id="file-log" class="text-muted small p-2 bg-light rounded">Sẵn sàng...</div>
-                <div id="file-preview" class="preview-box mt-3 p-3 bg-light rounded hidden"></div>
             </div>
         </div>
     </div>
@@ -105,13 +103,13 @@
 <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
 
 <script>
-    const firebaseConfig = {
+    const firebaseConfig = { 
         apiKey: "AIzaSyBZngQdNGeFNbxz35hdZKuWxqxIxJVKaAA",
         authDomain: "quizapp-f4f00.firebaseapp.com",
         projectId: "quizapp-f4f00",
         storageBucket: "quizapp-f4f00.firebasestorage.app",
         messagingSenderId: "852224211635",
-        appId: "1:852224211635:web:ef5efe4e2ed092a4960ec6"
+        appId: "1:852224211635:web:ef5efe4e2ed092a4960ec6" 
     };
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
@@ -122,260 +120,232 @@
             .then(() => {
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('admin-dashboard').classList.remove('hidden');
-                initExamFilter();
-                loadExams();
-            }).catch(err => alert('Lỗi: ' + err.message));
+                initExamFilter(); loadExams();
+            }).catch(err => alert("Lỗi: " + err.message));
     }
 
-    function switchTab(tabId, evt) {
+    function switchTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
         document.getElementById(tabId).classList.remove('hidden');
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-        if (evt && evt.currentTarget) evt.currentTarget.classList.add('active');
-    }
-
-    function normalizeText(text) {
-        return (text || '')
-            .replace(/\u00A0/g, ' ')
-            .replace(/[“”]/g, '"')
-            .replace(/[‘’]/g, "'")
-            .replace(/\r/g, '')
-            .replace(/\t/g, ' ')
-            .replace(/[ ]{2,}/g, ' ')
-            .replace(/\n{3,}/g, '\n\n')
-            .trim();
-    }
-
-    function extractSectionHeader(text, roman) {
-        const re = new RegExp(`(^|\\n)\\s*(Phần\\s*${roman}[^\\n]*)`, 'i');
-        const match = text.match(re);
-        return match ? match[2].trim() : `Phần ${roman}`;
-    }
-
-    function removeSectionHeader(text, roman) {
-        const re = new RegExp(`^\\s*Phần\\s*${roman}[^\\n]*\\n?`, 'i');
-        return text.replace(re, '').trim();
-    }
-
-    function parseMultipleChoice(sectionText, answerMap) {
-        const list = [];
-        const regex = /Câu\s*(\d+)\s*[:.\)]\s*([\s\S]*?)(?=\n\s*Câu\s*\d+\s*[:.\)]|$)/gi;
-        let match;
-
-        while ((match = regex.exec(sectionText)) !== null) {
-            const number = parseInt(match[1], 10);
-            const block = match[2].trim();
-            const optionRegex = /(?:^|\n)\s*([A-D])\s*[\.:\)]\s*([\s\S]*?)(?=(?:\n\s*[A-D]\s*[\.:\)])|$)/gi;
-            let optionMatch;
-            const options = [];
-            let questionText = block;
-            let firstIndex = block.search(/(?:^|\n)\s*A\s*[\.:\)]/i);
-            if (firstIndex >= 0) questionText = block.slice(0, firstIndex).trim();
-
-            while ((optionMatch = optionRegex.exec(block)) !== null) {
-                options.push(optionMatch[2].trim());
-            }
-
-            if (questionText && options.length >= 4) {
-                list.push({
-                    type: 'mcq',
-                    displayNumber: number,
-                    q: questionText,
-                    a: options.slice(0, 4),
-                    correct: typeof answerMap[number] === 'number' ? answerMap[number] : 0
-                });
-            }
-        }
-        return list;
-    }
-
-    function parseTrueFalse(sectionText, answerMap) {
-        const list = [];
-        const regex = /Câu\s*(\d+)\s*[:.\)]\s*(?:\((?:Đúng\s*Sai|Đúng\/Sai)\)\s*)?([\s\S]*?)(?=\n\s*Câu\s*\d+\s*[:.\)]|$)/gi;
-        let match;
-
-        while ((match = regex.exec(sectionText)) !== null) {
-            const number = parseInt(match[1], 10);
-            const block = match[2].trim();
-            const subRegex = /(?:^|\n)\s*([a-d])\s*[\)\.]\s*([\s\S]*?)(?=(?:\n\s*[a-d]\s*[\)\.])|$)/gi;
-            const statements = [];
-            let subMatch;
-            let questionText = block;
-            let firstIndex = block.search(/(?:^|\n)\s*a\s*[\)\.]/i);
-            if (firstIndex >= 0) questionText = block.slice(0, firstIndex).trim();
-
-            while ((subMatch = subRegex.exec(block)) !== null) {
-                statements.push(subMatch[2].trim());
-            }
-
-            const answers = answerMap[number] || [];
-            if (statements.length >= 2) {
-                list.push({
-                    type: 'truefalse',
-                    displayNumber: number,
-                    q: questionText,
-                    statements,
-                    correctAnswers: answers.slice(0, statements.length)
-                });
-            }
-        }
-        return list;
-    }
-
-    function parseExamFromText(rawText) {
-        const text = normalizeText(rawText);
-        const parts = text.split(/\bHết\b/i);
-        if (parts.length < 2) throw new Error('Thiếu chữ Hết trong file Word.');
-
-        const body = parts[0].trim();
-        const answerSection = parts.slice(1).join('\n').trim();
-
-        const partIMatch = body.match(/Phần\s*I[^\n]*[\s\S]*?(?=\n\s*Phần\s*II[^\n]*|$)/i);
-        const partIIMatch = body.match(/Phần\s*II[^\n]*[\s\S]*$/i);
-
-        const partIHeader = partIMatch ? extractSectionHeader(partIMatch[0], 'I') : 'Phần I. Trắc nghiệm';
-        const partIIHeader = partIIMatch ? extractSectionHeader(partIIMatch[0], 'II') : 'Phần II. Đúng Sai';
-
-        const sectionI = partIMatch ? removeSectionHeader(partIMatch[0], 'I') : '';
-        const sectionII = partIIMatch ? removeSectionHeader(partIIMatch[0], 'II') : '';
-
-        const mcqAnswers = {};
-        const tfAnswers = {};
-
-        const mcqRegex = /(\d+)\s*[\.:\)]\s*([A-D])/gi;
-        let mcqMatch;
-        while ((mcqMatch = mcqRegex.exec(answerSection)) !== null) {
-            mcqAnswers[parseInt(mcqMatch[1], 10)] = mcqMatch[2].toUpperCase().charCodeAt(0) - 65;
-        }
-
-        const tfRegex = /(\d+)\s*[\.:\)]\s*([ĐSđs]+)/g;
-        let tfMatch;
-        while ((tfMatch = tfRegex.exec(answerSection)) !== null) {
-            tfAnswers[parseInt(tfMatch[1], 10)] = tfMatch[2]
-                .toUpperCase()
-                .split('')
-                .filter(ch => ch === 'Đ' || ch === 'S')
-                .map(ch => ch === 'Đ');
-        }
-
-        const mcqQuestions = parseMultipleChoice(sectionI, mcqAnswers);
-        const tfQuestions = parseTrueFalse(sectionII, tfAnswers);
-        const questions = [...mcqQuestions, ...tfQuestions];
-
-        if (!questions.length) throw new Error('Không tìm thấy câu hỏi hợp lệ trong file Word.');
-
-        return { partIHeader, partIIHeader, questions };
+        event.currentTarget.classList.add('active');
     }
 
     function initExamFilter() {
-        db.collection('exams').orderBy('createdAt', 'desc').onSnapshot(snap => {
+        db.collection("exams").orderBy("createdAt", "desc").onSnapshot(snap => {
             const select = document.getElementById('filter-exam');
             select.innerHTML = '<option value="">-- Chọn đề thi --</option>';
-            snap.forEach(doc => {
-                const d = doc.data();
-                select.innerHTML += `<option value="${doc.id}">${d.name}</option>`;
-            });
+            snap.forEach(doc => select.innerHTML += `<option value="${doc.id}">${doc.data().name}</option>`);
         });
     }
 
     function loadRankedScores() {
-        const id = document.getElementById('filter-exam').value;
-        if (!id) return;
-        db.collection('results').where('examId', '==', id).orderBy('score', 'desc').orderBy('time', 'asc').onSnapshot(snap => {
-            const list = document.getElementById('score-list');
-            list.innerHTML = '';
-            let rank = 1;
+        const id = document.getElementById('filter-exam').value; if(!id) return;
+        db.collection("results").where("examId", "==", id).orderBy("score", "desc").orderBy("time", "asc").onSnapshot(snap => {
+            const list = document.getElementById('score-list'); list.innerHTML = ''; let rank = 1;
             snap.forEach(doc => {
                 const d = doc.data();
-                list.innerHTML += `<tr><td><b class="fs-5">#${rank}</b></td><td><b>${d.name}</b></td><td>${d.class || ''}</td><td><span class="text-success">${d.score}Đ</span> - <span class="text-danger">${d.wrong || 0}S</span></td><td><span class="badge bg-primary fs-6">${d.grade10}</span></td><td>${d.time?.toDate ? d.time.toDate().toLocaleTimeString() : ''}</td></tr>`;
+                list.innerHTML += `<tr><td><b class="fs-5">#${rank}</b></td><td><b>${d.name}</b></td><td>${d.class}</td><td><span class="text-success">${d.score}Đ</span> - <span class="text-danger">${d.wrong||0}S</span></td><td><span class="badge bg-primary fs-6">${d.grade10}</span></td><td>${d.time.toDate().toLocaleTimeString()}</td></tr>`;
                 rank++;
             });
         });
     }
 
     function loadExams() {
-        db.collection('exams').orderBy('createdAt', 'desc').onSnapshot(snap => {
-            const list = document.getElementById('exam-list');
-            list.innerHTML = '';
+        db.collection("exams").orderBy("createdAt", "desc").onSnapshot(snap => {
+            const list = document.getElementById('exam-list'); list.innerHTML = '';
             snap.forEach(doc => {
                 const ex = doc.data();
-                const headers = [ex.partIHeader, ex.partIIHeader].filter(Boolean).join('<br>');
-                list.innerHTML += `<tr><td><b>${ex.name}</b></td><td>${headers || '-'}</td><td>${ex.timeLimit || 15} phút</td><td><span class="status-badge ${ex.isActive ? 'bg-active' : 'bg-stopped'}">${ex.isActive ? 'Mở' : 'Đóng'}</span></td><td><button class="btn btn-sm ${ex.isActive ? 'btn-warning' : 'btn-success'}" onclick="toggleExam('${doc.id}', ${!ex.isActive})">${ex.isActive ? 'Dừng' : 'Mở'}</button> <button class="btn btn-sm btn-danger ms-1" onclick="deleteExam('${doc.id}')">Xoá</button></td></tr>`;
+                list.innerHTML += `<tr><td><b>${ex.name}</b></td><td>${ex.timeLimit || 15} phút</td><td><span class="status-badge ${ex.isActive?'bg-active':'bg-stopped'}">${ex.isActive?'Mở':'Đóng'}</span></td><td><button class="btn btn-sm ${ex.isActive?'btn-warning':'btn-success'}" onclick="toggleExam('${doc.id}', ${!ex.isActive})">${ex.isActive?'Dừng':'Mở'}</button> <button class="btn btn-sm btn-danger ms-1" onclick="deleteExam('${doc.id}')">Xoá</button></td></tr>`;
             });
         });
     }
 
     async function toggleExam(id, status) {
-        if (status) {
-            const actives = await db.collection('exams').where('isActive', '==', true).get();
-            const batch = db.batch();
-            actives.forEach(d => batch.update(d.ref, { isActive: false }));
+        if(status) {
+            const actives = await db.collection("exams").where("isActive", "==", true).get();
+            const batch = db.batch(); actives.forEach(d => batch.update(d.ref, {isActive: false}));
             await batch.commit();
         }
-        await db.collection('exams').doc(id).update({ isActive: status });
+        db.collection("exams").doc(id).update({isActive: status});
     }
 
     async function deleteExam(id) {
-        if (!confirm('Xoá hết câu hỏi và kết quả?')) return;
-        const qSnap = await db.collection('questions').where('examId', '==', id).get();
-        const rSnap = await db.collection('results').where('examId', '==', id).get();
-        const batch = db.batch();
-        qSnap.forEach(q => batch.delete(q.ref));
-        rSnap.forEach(r => batch.delete(r.ref));
-        batch.delete(db.collection('exams').doc(id));
-        await batch.commit();
+        if(!confirm("Xoá hết câu hỏi và kết quả?")) return;
+        const qs = await db.collection("questions").where("examId", "==", id).get();
+        qs.forEach(q => q.ref.delete());
+        db.collection("exams").doc(id).delete();
+    }
+
+    function normalizeText(value) {
+        return (value || '')
+            .replace(/\r/g, '\n')
+            .replace(/\u00a0/g, ' ')
+            .replace(/[ \t]+/g, ' ')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+    }
+
+    function setLog(message, isError = false) {
+        const log = document.getElementById('file-log');
+        log.className = `small p-2 rounded ${isError ? 'text-danger bg-light border border-danger' : 'text-muted bg-light'}`;
+        log.innerHTML = `<div class="log-line">${message}</div>`;
+    }
+
+    function parseAnswerSections(answerText) {
+        const mcqAnswers = {};
+        const tfAnswers = {};
+        const normalized = normalizeText(answerText);
+        const partIIMatch = normalized.match(/Phần\s*II[\s\S]*/i);
+        const partIText = partIIMatch ? normalized.slice(0, partIIMatch.index) : normalized;
+        const partIIText = partIIMatch ? partIIMatch[0] : '';
+
+        for (const match of partIText.matchAll(/(\d+)\s*[\.\):\-]?\s*([A-D])/gi)) {
+            mcqAnswers[parseInt(match[1], 10)] = match[2].toUpperCase().charCodeAt(0) - 65;
+        }
+
+        for (const match of partIIText.matchAll(/(\d+)\s*[\.\):\-]?\s*([ĐDS]+)/gi)) {
+            const seq = (match[2] || '').toUpperCase().replace(/D/g, 'Đ').replace(/[^ĐS]/g, '');
+            if (seq) tfAnswers[parseInt(match[1], 10)] = seq.split('').map(ch => ch === 'Đ');
+        }
+
+        return { mcqAnswers, tfAnswers };
+    }
+
+    function splitQuestionBlocks(sectionText) {
+        const regex = /Câu\s*(\d+)\s*[:.\-]?/gi;
+        const matches = [...sectionText.matchAll(regex)];
+        return matches.map((match, index) => {
+            const start = match.index + match[0].length;
+            const end = index + 1 < matches.length ? matches[index + 1].index : sectionText.length;
+            return {
+                number: parseInt(match[1], 10),
+                content: sectionText.slice(start, end).trim()
+            };
+        });
+    }
+
+    function parseMcqSection(sectionText, mcqAnswers) {
+        const blocks = splitQuestionBlocks(sectionText);
+        const questions = [];
+        blocks.forEach(({ number, content }) => {
+            const cleaned = content.replace(/^\s*[\.:\-]\s*/, '').trim();
+            const parts = cleaned.split(/\n\s*[A-D][\.|\)]\s*/g).map(v => v.trim()).filter(Boolean);
+            if (parts.length >= 5) {
+                const optionMatches = cleaned.match(/(?:^|\n)\s*([A-D])[\.|\)]\s*([\s\S]*?)(?=(?:\n\s*[A-D][\.|\)]\s*)|$)/g) || [];
+                let answers = optionMatches.map(opt => opt.replace(/^\s*[A-D][\.|\)]\s*/, '').trim()).filter(Boolean);
+                if (answers.length < 4) answers = parts.slice(1, 5);
+                questions.push({
+                    number,
+                    type: 'mcq',
+                    section: 'Phần I',
+                    q: parts[0].trim(),
+                    a: answers.slice(0, 4),
+                    correct: Number.isInteger(mcqAnswers[number]) ? mcqAnswers[number] : 0,
+                    weight: 1,
+                    createdAt: new Date()
+                });
+            }
+        });
+        return questions;
+    }
+
+    function parseTrueFalseSection(sectionText, tfAnswers) {
+        const blocks = splitQuestionBlocks(sectionText);
+        const questions = [];
+        blocks.forEach(({ number, content }) => {
+            const cleaned = content.replace(/^\s*[\.:\-]\s*/, '').trim();
+            const lines = cleaned.split('\n').map(v => v.trim()).filter(Boolean);
+            const statementMatches = [...cleaned.matchAll(/(?:^|\n)\s*([a-d])[\)\.\-]\s*([\s\S]*?)(?=(?:\n\s*[a-d][\)\.\-]\s*)|$)/gi)];
+            const statements = statementMatches.length
+                ? statementMatches.map(m => m[2].trim())
+                : lines.filter(line => /^[a-d][\)\.\-]/i.test(line)).map(line => line.replace(/^[a-d][\)\.\-]\s*/i, '').trim());
+            const introLine = lines.find(line => !/^[a-d][\)\.\-]/i.test(line)) || 'Chọn đúng hoặc sai cho các nhận định sau.';
+            if (statements.length >= 2) {
+                const finalStatements = statements.slice(0, 4);
+                const defaultAnswers = new Array(finalStatements.length).fill(true);
+                const answerValues = tfAnswers[number] || [];
+                const correctValues = finalStatements.map((_, idx) =>
+                    typeof answerValues[idx] === 'boolean' ? answerValues[idx] : defaultAnswers[idx]
+                );
+                questions.push({
+                    number,
+                    type: 'tf',
+                    section: 'Phần II',
+                    q: introLine.replace(/\(\s*Đúng\s*Sai\s*\)/gi, '').trim(),
+                    statements: finalStatements,
+                    correctStatements: correctValues,
+                    weight: finalStatements.length,
+                    createdAt: new Date()
+                });
+            }
+        });
+        return questions;
+    }
+
+    function parseExamFromText(rawText) {
+        const normalized = normalizeText(rawText);
+        const parts = normalized.split(/\bHết\b/i);
+        if (parts.length < 2) throw new Error("Thiếu chữ 'Hết' để phân cách nội dung và đáp án.");
+
+        const body = parts[0];
+        const answerText = parts.slice(1).join('\n');
+        const partIMatch = body.match(/Phần\s*I[\s\S]*?(?=Phần\s*II|$)/i);
+        const partIIMatch = body.match(/Phần\s*II[\s\S]*$/i);
+        if (!partIMatch) throw new Error("Không tìm thấy khung 'Phần I' trong file Word.");
+        if (!partIIMatch) throw new Error("Không tìm thấy khung 'Phần II' trong file Word.");
+
+        const sectionI = partIMatch[0].replace(/^[\s\S]*?Phần\s*I[^\n]*\n?/i, '').trim();
+        const sectionII = partIIMatch[0].replace(/^[\s\S]*?Phần\s*II[^\n]*\n?/i, '').trim();
+        const { mcqAnswers, tfAnswers } = parseAnswerSections(answerText);
+        const mcqQuestions = parseMcqSection(sectionI, mcqAnswers);
+        const tfQuestions = parseTrueFalseSection(sectionII, tfAnswers);
+
+        if (!mcqQuestions.length) throw new Error("Không đọc được câu hỏi trắc nghiệm ở Phần I.");
+        if (!tfQuestions.length) throw new Error("Không đọc được câu hỏi Đúng/Sai ở Phần II.");
+
+        return {
+            questions: [...mcqQuestions, ...tfQuestions],
+            summary: {
+                mcqCount: mcqQuestions.length,
+                tfCount: tfQuestions.length,
+                totalScoreItems: mcqQuestions.length + tfQuestions.reduce((sum, q) => sum + (q.weight || (q.statements || []).length || 0), 0)
+            }
+        };
     }
 
     async function processWordFile() {
         const name = document.getElementById('exam-name').value.trim();
-        const timeLimit = parseInt(document.getElementById('exam-time').value, 10);
+        const timeLimit = parseInt(document.getElementById('exam-time').value);
         const file = document.getElementById('file-picker').files[0];
-        const log = document.getElementById('file-log');
-        const preview = document.getElementById('file-preview');
-
-        if (!name || !file || isNaN(timeLimit)) return alert('Thiếu thông tin!');
+        if(!name || !file || isNaN(timeLimit)) return alert("Thiếu thông tin!");
 
         try {
-            log.textContent = 'Đang đọc file Word...';
-            const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+            setLog('Đang đọc file Word và phân tích Phần I / Phần II...');
+            const result = await mammoth.extractRawText({arrayBuffer: await file.arrayBuffer()});
             const parsed = parseExamFromText(result.value);
-
-            preview.classList.remove('hidden');
-            preview.textContent = `Tiêu đề phần I: ${parsed.partIHeader}\nTiêu đề phần II: ${parsed.partIIHeader}\nTổng số câu: ${parsed.questions.length}`;
-
-            const examDoc = await db.collection('exams').add({
+            const examDoc = await db.collection("exams").add({
                 name,
                 timeLimit,
-                partIHeader: parsed.partIHeader,
-                partIIHeader: parsed.partIIHeader,
                 createdAt: new Date(),
-                isActive: false
+                isActive: false,
+                questionStats: parsed.summary
             });
 
             const batch = db.batch();
-            parsed.questions.forEach((q, index) => {
-                const ref = db.collection('questions').doc();
-                batch.set(ref, {
-                    examId: examDoc.id,
-                    order: index,
-                    type: q.type,
-                    displayNumber: q.displayNumber,
-                    q: q.q,
-                    a: q.a || [],
-                    statements: q.statements || [],
-                    correct: typeof q.correct === 'number' ? q.correct : null,
-                    correctAnswers: q.correctAnswers || [],
-                    createdAt: new Date()
-                });
+            parsed.questions.forEach(question => {
+                const ref = db.collection("questions").doc();
+                batch.set(ref, { ...question, examId: examDoc.id });
             });
             await batch.commit();
 
-            log.textContent = `Tải lên thành công. ${parsed.questions.length} câu hỏi đã được lưu.`;
-            alert('Tải lên thành công!');
+            setLog(`Tải lên thành công!\n- Phần I: ${parsed.summary.mcqCount} câu trắc nghiệm\n- Phần II: ${parsed.summary.tfCount} câu đúng/sai\n- Tổng số lượt chấm: ${parsed.summary.totalScoreItems}\n- Phần II hỗ trợ linh hoạt 2, 3 hoặc 4 ý con mỗi câu`);
+            alert("Tải lên thành công!");
+            document.getElementById('file-picker').value = '';
         } catch (err) {
             console.error(err);
-            log.textContent = 'Lỗi: ' + err.message;
-            alert('Lỗi xử lý file Word: ' + err.message);
+            setLog(`Lỗi xử lý file: ${err.message}`, true);
+            alert("Lỗi: " + err.message);
         }
     }
 </script>
