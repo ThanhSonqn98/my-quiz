@@ -295,8 +295,8 @@
         if (!partIMatch) throw new Error("Không tìm thấy khung 'Phần I' trong file Word.");
         if (!partIIMatch) throw new Error("Không tìm thấy khung 'Phần II' trong file Word.");
 
-        const sectionI = partIMatch[0].replace(/^[\s\S]*?Phần\s*I[^\n]*\n?/i, '').trim();
-        const sectionII = partIIMatch[0].replace(/^[\s\S]*?Phần\s*II[^\n]*\n?/i, '').trim();
+        const partIHeader = (partIMatch[0].match(/^.*Phần\s*I[^\n]*/i) || ['Phần I'])[0].trim();
+		const partIIHeader = (partIIMatch[0].match(/^.*Phần\s*II[^\n]*/i) || ['Phần II'])[0].trim();
         const { mcqAnswers, tfAnswers } = parseAnswerSections(answerText);
         const mcqQuestions = parseMcqSection(sectionI, mcqAnswers);
         const tfQuestions = parseTrueFalseSection(sectionII, tfAnswers);
