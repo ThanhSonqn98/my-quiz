@@ -23,6 +23,8 @@
         .btn-success { background: var(--primary); border: none; }
         .table thead { background: #f1f5f9; }
         .table th { font-weight: 600; color: #475569; border: none; }
+        .upload-guide code { background: #e2e8f0; padding: 2px 6px; border-radius: 6px; }
+        .log-line { white-space: pre-wrap; }
     </style>
 </head>
 <body>
@@ -78,13 +80,16 @@
         <div id="tab-upload" class="tab-content hidden">
             <h3 class="fw-bold mb-4">Tải đề thi mới</h3>
             <div class="card p-4">
-                <div class="alert alert-info py-3 small">
-                    <b>Cấu trúc file:</b> Câu 1: ... A. B. C. D. -> Ngăn cách bằng chữ <b>Hết</b> -> Đáp án: 1.A, 2.B...
+                <div class="alert alert-info py-3 small upload-guide">
+                    <div><b>Định dạng mới của file Word:</b></div>
+                    <div class="mt-2"><b>Phần I. Trắc nghiệm</b> bắt đầu từ <code>Câu 1.</code>, mỗi câu có 4 lựa chọn <code>A.</code> <code>B.</code> <code>C.</code> <code>D.</code></div>
+                    <div class="mt-1"><b>Phần II. Chọn Đúng / Sai</b> bắt đầu từ <code>Câu 1. (Đúng Sai)</code> và có các ý con <code>a)</code>, <code>b)</code>, <code>c)</code>, <code>d)</code></div>
+                    <div class="mt-1">Phần đáp án đặt sau chữ <code>Hết</code>. Ví dụ: <code>Phần I: 1.A, 2.C</code> và <code>Phần II: 1.ĐSĐS, 2.SĐĐS</code></div>
                 </div>
                 <input type="text" id="exam-name" class="form-control mb-3" placeholder="Tên đề thi">
                 <input type="number" id="exam-time" class="form-control mb-3" placeholder="Thời gian làm bài (phút)" value="15">
                 <div class="input-group mb-3">
-                    <input type="file" id="file-picker" class="form-control" accept=".docx">
+                    <input type="file" id="file-picker" class="form-control" accept=".doc,.docx">
                     <button class="btn btn-success px-4" onclick="processWordFile()">Tải lên</button>
                 </div>
                 <div id="file-log" class="text-muted small p-2 bg-light rounded">Sẵn sàng...</div>
@@ -168,27 +173,180 @@
     async function deleteExam(id) {
         if(!confirm("Xoá hết câu hỏi và kết quả?")) return;
         const qs = await db.collection("questions").where("examId", "==", id).get();
-        qs.forEach(q => q.ref.delete()); db.collection("exams").doc(id).delete();
+        qs.forEach(q => q.ref.delete());
+        db.collection("exams").doc(id).delete();
+    }
+
+    function normalizeText(value) {
+        return (value || '')
+            .replace(/\r/g, '\n')
+            .replace(/\u00a0/g, ' ')
+            .replace(/[ \t]+/g, ' ')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+    }
+
+    function setLog(message, isError = false) {
+        const log = document.getElementById('file-log');
+        log.className = `small p-2 rounded ${isError ? 'text-danger bg-light border border-danger' : 'text-muted bg-light'}`;
+        log.innerHTML = `<div class="log-line">${message}</div>`;
+    }
+
+    function parseAnswerSections(answerText) {
+        const mcqAnswers = {};
+        const tfAnswers = {};
+        const normalized = normalizeText(answerText);
+        const partIIMatch = normalized.match(/Phần\s*II[\s\S]*/i);
+        const partIText = partIIMatch ? normalized.slice(0, partIIMatch.index) : normalized;
+        const partIIText = partIIMatch ? partIIMatch[0] : '';
+
+        for (const match of partIText.matchAll(/(\d+)\s*[\.\):\-]?\s*([A-D])/gi)) {
+            mcqAnswers[parseInt(match[1], 10)] = match[2].toUpperCase().charCodeAt(0) - 65;
+        }
+
+        for (const match of partIIText.matchAll(/(\d+)\s*[\.\):\-]?\s*([ĐDS]+)/gi)) {
+            const seq = (match[2] || '').toUpperCase().replace(/D/g, 'Đ').replace(/[^ĐS]/g, '');
+            if (seq) tfAnswers[parseInt(match[1], 10)] = seq.split('').map(ch => ch === 'Đ');
+        }
+
+        return { mcqAnswers, tfAnswers };
+    }
+
+    function splitQuestionBlocks(sectionText) {
+        const regex = /Câu\s*(\d+)\s*[:.\-]?/gi;
+        const matches = [...sectionText.matchAll(regex)];
+        return matches.map((match, index) => {
+            const start = match.index + match[0].length;
+            const end = index + 1 < matches.length ? matches[index + 1].index : sectionText.length;
+            return {
+                number: parseInt(match[1], 10),
+                content: sectionText.slice(start, end).trim()
+            };
+        });
+    }
+
+    function parseMcqSection(sectionText, mcqAnswers) {
+        const blocks = splitQuestionBlocks(sectionText);
+        const questions = [];
+        blocks.forEach(({ number, content }) => {
+            const cleaned = content.replace(/^\s*[\.:\-]\s*/, '').trim();
+            const parts = cleaned.split(/\n\s*[A-D][\.|\)]\s*/g).map(v => v.trim()).filter(Boolean);
+            if (parts.length >= 5) {
+                const optionMatches = cleaned.match(/(?:^|\n)\s*([A-D])[\.|\)]\s*([\s\S]*?)(?=(?:\n\s*[A-D][\.|\)]\s*)|$)/g) || [];
+                let answers = optionMatches.map(opt => opt.replace(/^\s*[A-D][\.|\)]\s*/, '').trim()).filter(Boolean);
+                if (answers.length < 4) answers = parts.slice(1, 5);
+                questions.push({
+                    number,
+                    type: 'mcq',
+                    section: 'Phần I',
+                    q: parts[0].trim(),
+                    a: answers.slice(0, 4),
+                    correct: Number.isInteger(mcqAnswers[number]) ? mcqAnswers[number] : 0,
+                    weight: 1,
+                    createdAt: new Date()
+                });
+            }
+        });
+        return questions;
+    }
+
+    function parseTrueFalseSection(sectionText, tfAnswers) {
+        const blocks = splitQuestionBlocks(sectionText);
+        const questions = [];
+        blocks.forEach(({ number, content }) => {
+            const cleaned = content.replace(/^\s*[\.:\-]\s*/, '').trim();
+            const lines = cleaned.split('\n').map(v => v.trim()).filter(Boolean);
+            const statementMatches = [...cleaned.matchAll(/(?:^|\n)\s*([a-d])[\)\.\-]\s*([\s\S]*?)(?=(?:\n\s*[a-d][\)\.\-]\s*)|$)/gi)];
+            const statements = statementMatches.length
+                ? statementMatches.map(m => m[2].trim())
+                : lines.filter(line => /^[a-d][\)\.\-]/i.test(line)).map(line => line.replace(/^[a-d][\)\.\-]\s*/i, '').trim());
+            const introLine = lines.find(line => !/^[a-d][\)\.\-]/i.test(line)) || 'Chọn đúng hoặc sai cho các nhận định sau.';
+            if (statements.length >= 2) {
+                const finalStatements = statements.slice(0, 4);
+                const defaultAnswers = new Array(finalStatements.length).fill(true);
+                const answerValues = tfAnswers[number] || [];
+                const correctValues = finalStatements.map((_, idx) =>
+                    typeof answerValues[idx] === 'boolean' ? answerValues[idx] : defaultAnswers[idx]
+                );
+                questions.push({
+                    number,
+                    type: 'tf',
+                    section: 'Phần II',
+                    q: introLine.replace(/\(\s*Đúng\s*Sai\s*\)/gi, '').trim(),
+                    statements: finalStatements,
+                    correctStatements: correctValues,
+                    weight: finalStatements.length,
+                    createdAt: new Date()
+                });
+            }
+        });
+        return questions;
+    }
+
+    function parseExamFromText(rawText) {
+        const normalized = normalizeText(rawText);
+        const parts = normalized.split(/\bHết\b/i);
+        if (parts.length < 2) throw new Error("Thiếu chữ 'Hết' để phân cách nội dung và đáp án.");
+
+        const body = parts[0];
+        const answerText = parts.slice(1).join('\n');
+        const partIMatch = body.match(/Phần\s*I[\s\S]*?(?=Phần\s*II|$)/i);
+        const partIIMatch = body.match(/Phần\s*II[\s\S]*$/i);
+        if (!partIMatch) throw new Error("Không tìm thấy khung 'Phần I' trong file Word.");
+        if (!partIIMatch) throw new Error("Không tìm thấy khung 'Phần II' trong file Word.");
+
+        const sectionI = partIMatch[0].replace(/^[\s\S]*?Phần\s*I[^\n]*\n?/i, '').trim();
+        const sectionII = partIIMatch[0].replace(/^[\s\S]*?Phần\s*II[^\n]*\n?/i, '').trim();
+        const { mcqAnswers, tfAnswers } = parseAnswerSections(answerText);
+        const mcqQuestions = parseMcqSection(sectionI, mcqAnswers);
+        const tfQuestions = parseTrueFalseSection(sectionII, tfAnswers);
+
+        if (!mcqQuestions.length) throw new Error("Không đọc được câu hỏi trắc nghiệm ở Phần I.");
+        if (!tfQuestions.length) throw new Error("Không đọc được câu hỏi Đúng/Sai ở Phần II.");
+
+        return {
+            questions: [...mcqQuestions, ...tfQuestions],
+            summary: {
+                mcqCount: mcqQuestions.length,
+                tfCount: tfQuestions.length,
+                totalScoreItems: mcqQuestions.length + tfQuestions.reduce((sum, q) => sum + (q.weight || (q.statements || []).length || 0), 0)
+            }
+        };
     }
 
     async function processWordFile() {
-        const name = document.getElementById('exam-name').value;
+        const name = document.getElementById('exam-name').value.trim();
         const timeLimit = parseInt(document.getElementById('exam-time').value);
         const file = document.getElementById('file-picker').files[0];
         if(!name || !file || isNaN(timeLimit)) return alert("Thiếu thông tin!");
-        mammoth.extractRawText({arrayBuffer: await file.arrayBuffer()}).then(async result => {
-            const parts = result.value.split(/Hết/i);
-            if(parts.length < 2) return alert("Thiếu chữ 'Hết'!");
-            const ansMap = {}; const matches = parts[1].matchAll(/(\d+)[\.\s]*([A-D])/gi);
-            for (const m of matches) ansMap[m[1]] = m[2].toUpperCase().charCodeAt(0) - 65;
-            const examDoc = await db.collection("exams").add({name, timeLimit, createdAt: new Date(), isActive: false});
-            const blocks = parts[0].split(/Câu \d+[:.]/g).filter(b => b.trim().length > 10);
-            blocks.forEach((block, index) => {
-                const lines = block.split(/[A-D][.:]/g);
-                if(lines.length >= 5) db.collection("questions").add({examId: examDoc.id, q: lines[0].trim(), a: [lines[1].trim(), lines[2].trim(), lines[3].trim(), lines[4].trim()], correct: ansMap[index+1]||0, createdAt: new Date()});
+
+        try {
+            setLog('Đang đọc file Word và phân tích Phần I / Phần II...');
+            const result = await mammoth.extractRawText({arrayBuffer: await file.arrayBuffer()});
+            const parsed = parseExamFromText(result.value);
+            const examDoc = await db.collection("exams").add({
+                name,
+                timeLimit,
+                createdAt: new Date(),
+                isActive: false,
+                questionStats: parsed.summary
             });
+
+            const batch = db.batch();
+            parsed.questions.forEach(question => {
+                const ref = db.collection("questions").doc();
+                batch.set(ref, { ...question, examId: examDoc.id });
+            });
+            await batch.commit();
+
+            setLog(`Tải lên thành công!\n- Phần I: ${parsed.summary.mcqCount} câu trắc nghiệm\n- Phần II: ${parsed.summary.tfCount} câu đúng/sai\n- Tổng số lượt chấm: ${parsed.summary.totalScoreItems}\n- Phần II hỗ trợ linh hoạt 2, 3 hoặc 4 ý con mỗi câu`);
             alert("Tải lên thành công!");
-        });
+            document.getElementById('file-picker').value = '';
+        } catch (err) {
+            console.error(err);
+            setLog(`Lỗi xử lý file: ${err.message}`, true);
+            alert("Lỗi: " + err.message);
+        }
     }
 </script>
 </body>
