@@ -137,7 +137,7 @@
     });
 
     function shuffleOptions(options, correctIndex) {
-        const mappedOptions = options.map((text, index) => ({ text, isCorrect: index === correctIndex }));
+        const mappedOptions = options.map((text, index) => ({ text, isCorrect: index === correctIndex, originalIndex: index }));
         for (let i = mappedOptions.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [mappedOptions[i], mappedOptions[j]] = [mappedOptions[j], mappedOptions[i]];
@@ -184,7 +184,7 @@
             const btn = document.createElement('button');
             btn.className = 'option-btn';
             btn.innerHTML = `<span class="option-label">${labels[i]}</span> <span>${opt.text}</span>`;
-            btn.onclick = () => checkMcq(btn, opt.isCorrect);
+            btn.onclick = () => checkMcq(btn, opt);
             box.appendChild(btn);
         });
     }
@@ -230,12 +230,14 @@
         document.getElementById('submit-tf-btn').disabled = runtime.tfSelections.some(v => v === null);
     }
 
-    function checkMcq(btn, isCorrect) {
+    function checkMcq(btn, selectedOption) {
         const btns = document.querySelectorAll('.option-btn');
         btns.forEach(b => b.disabled = true);
         const runtime = questionRuntime[curIdx];
+        const isCorrect = !!selectedOption.isCorrect;
         runtime.answered = true;
         runtime.scoreEarned = isCorrect ? 1 : 0;
+        runtime.selectedOriginalIndex = selectedOption.originalIndex;
         document.getElementById(`nav-item-${curIdx}`).classList.add('done');
         if(isCorrect) { btn.classList.add('correct'); score += 1; } 
         else {
@@ -265,10 +267,42 @@
         });
         runtime.answered = true;
         runtime.scoreEarned = earned;
+        runtime.selectedStatements = [...runtime.tfSelections];
         score += earned;
         document.getElementById(`nav-item-${curIdx}`).classList.add('done');
         document.getElementById('submit-tf-btn').disabled = true;
         setTimeout(() => { curIdx++; if(curIdx < questions.length) showQ(); else finish(); }, 1400);
+    }
+
+    function buildAttemptDetails() {
+        return questions.map((q, index) => {
+            const runtime = questionRuntime[index] || {};
+            if (q.type === 'tf') {
+                return {
+                    type: 'tf',
+                    section: q.section || 'Phần II',
+                    number: q.number || (index + 1),
+                    question: q.q || '',
+                    statements: Array.isArray(q.statements) ? q.statements : [],
+                    selectedStatements: Array.isArray(runtime.selectedStatements) ? runtime.selectedStatements : Array.isArray(runtime.tfSelections) ? runtime.tfSelections : [],
+                    correctStatements: Array.isArray(q.correctStatements) ? q.correctStatements : [],
+                    scoreEarned: runtime.scoreEarned || 0,
+                    weight: q.weight || (Array.isArray(q.statements) ? q.statements.length : 0)
+                };
+            }
+            return {
+                type: 'mcq',
+                section: q.section || 'Phần I',
+                number: q.number || (index + 1),
+                question: q.q || '',
+                options: Array.isArray(q.a) ? q.a : [],
+                selectedOriginalIndex: Number.isInteger(runtime.selectedOriginalIndex) ? runtime.selectedOriginalIndex : null,
+                correctIndex: Number.isInteger(q.correct) ? q.correct : null,
+                isCorrect: (runtime.scoreEarned || 0) > 0,
+                scoreEarned: runtime.scoreEarned || 0,
+                weight: q.weight || 1
+            };
+        });
     }
 
     function startTimer(m) {
@@ -284,7 +318,7 @@
         if(!timer) return;
         clearInterval(timer);
         timer = null;
-        const total = questions.reduce((sum, q) => sum + (q.weight || (q.type === 'tf' ? 4 : 1)), 0);
+        const total = questions.reduce((sum, q) => sum + (q.weight || (q.type === 'tf' ? ((q.statements || []).length || 0) : 1)), 0);
         const g10 = total ? ((score/total)*10).toFixed(2) : '0.00';
         const studentName = document.getElementById('name').value;
         document.getElementById('quiz-wrapper').classList.add('hidden');
@@ -300,6 +334,7 @@
             wrong: total - score,
             grade10: g10,
             totalItems: total,
+            attemptDetails: buildAttemptDetails(),
             time: new Date() 
         };
         db.collection("results").add(res).then(() => loadRanking(activeEx.id, studentName));
