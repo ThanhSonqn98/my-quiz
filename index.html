@@ -14,27 +14,24 @@
         .q-card { padding: 30px; margin-bottom: 20px; }
         .option-btn { display: flex; align-items: center; width: 100%; text-align: left; margin-bottom: 15px; padding: 12px 20px; border: 1px solid #e0e0e0; border-radius: 50px; background: #fff; transition: all 0.2s; }
         .option-label { width: 35px; height: 35px; border: 1px solid #ddd; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-weight: bold; flex-shrink: 0; }
-        .option-btn:hover:not([disabled]) { border-color: var(--primary-color); background: #f7faff; }
+        .option-btn:hover:not([disabled]), .tf-choice:hover:not([disabled]) { border-color: var(--primary-color); background: #f7faff; }
         .correct { background: #e8f5e9 !important; border-color: #2e7d32 !important; color: #2e7d32; }
         .correct .option-label { background: #2e7d32; color: #fff; border-color: #2e7d32; }
         .wrong { background: #ffebee !important; border-color: #c62828 !important; color: #c62828; }
         .wrong .option-label { background: #c62828; color: #fff; border-color: #c62828; }
         .q-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; padding: 15px; }
-        .q-num-item { height: 40px; border: 1px solid #ddd; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: default; transition: 0.3s; }
+        .q-num-item { min-height: 40px; border: 1px solid #ddd; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: default; transition: 0.3s; padding: 4px; text-align: center; }
         .q-num-item.active { border: 2px solid var(--primary-color); font-weight: bold; color: var(--primary-color); }
         .q-num-item.done { background: #e3f2fd; color: #1976d2; border-color: #bbdefb; }
         .hidden { display: none; }
         #timer { font-size: 1.5rem; color: #d32f2f; font-weight: bold; }
         .my-rank { background: #fff3cd !important; border: 1px solid #ffecb3; }
-        .section-chip { display: inline-block; padding: 6px 12px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-weight: 700; font-size: 0.8rem; }
-        .tf-grid { display: flex; flex-direction: column; gap: 14px; }
-        .tf-row { border: 1px solid #e2e8f0; border-radius: 16px; padding: 14px 16px; }
-        .tf-actions { display: flex; gap: 10px; margin-top: 12px; }
-        .tf-btn { min-width: 110px; border-radius: 999px; }
-        .tf-btn.active-choice { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
-        .tf-row.correct-row { border-color: #2e7d32; background: #f0fdf4; }
-        .tf-row.wrong-row { border-color: #c62828; background: #fef2f2; }
-        .mini-note { font-size: 0.9rem; color: #64748b; }
+        .section-badge { display: inline-block; background: #eef6ff; color: #1d4ed8; border: 1px solid #cfe3ff; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; margin-bottom: 14px; }
+        .tf-statement { border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+        .tf-label { font-weight: 700; margin-bottom: 8px; }
+        .tf-choices { display: flex; gap: 10px; margin-top: 10px; }
+        .tf-choice { border: 1px solid #d1d5db; border-radius: 999px; padding: 8px 18px; background: white; transition: all 0.2s; }
+        .tf-choice.selected { border-color: var(--primary-color); background: #eff6ff; color: var(--primary-color); font-weight: 700; }
     </style>
 </head>
 <body>
@@ -57,14 +54,11 @@
     <div class="main-quiz">
         <div class="card q-card">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <div id="section-badge" class="section-chip mb-2">PHẦN I</div>
-                    <h5 class="text-uppercase fw-bold text-muted mb-0" id="exam-title-display">ĐỀ THI</h5>
-                </div>
+                <h5 class="text-uppercase fw-bold text-muted" id="exam-title-display">ĐỀ THI</h5>
                 <div id="timer">00:00</div>
             </div>
-            <h4 id="q-text" class="mb-3 fw-bold" style="line-height: 1.6;"></h4>
-            <div id="q-meta" class="mini-note mb-4"></div>
+            <div id="section-title" class="section-badge hidden"></div>
+            <h4 id="q-text" class="mb-4 fw-bold" style="line-height: 1.6;"></h4>
             <div id="options-box"></div>
         </div>
     </div>
@@ -97,220 +91,217 @@
 <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
 
 <script>
-    const firebaseConfig = { 
+    const firebaseConfig = {
         apiKey: "AIzaSyBZngQdNGeFNbxz35hdZKuWxqxIxJVKaAA",
         authDomain: "quizapp-f4f00.firebaseapp.com",
         projectId: "quizapp-f4f00",
         storageBucket: "quizapp-f4f00.firebasestorage.app",
         messagingSenderId: "852224211635",
-        appId: "1:852224211635:web:ef5efe4e2ed092a4960ec6" 
+        appId: "1:852224211635:web:ef5efe4e2ed092a4960ec6"
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    let activeEx = null, questions = [], curIdx = 0, score = 0, timer;
-    let questionRuntime = [];
+    let activeEx = null, questions = [], curIdx = 0, score = 0, wrong = 0, timer = null;
 
-    db.collection("exams").where("isActive", "==", true).limit(1).onSnapshot(snap => {
-        if(snap.empty) { document.getElementById('exam-status').innerText = "Hiện không có đề mở."; return; }
-        activeEx = {id: snap.docs[0].id, ...snap.docs[0].data()};
+    db.collection('exams').where('isActive', '==', true).limit(1).onSnapshot(async snap => {
+        if (snap.empty) {
+            document.getElementById('exam-status').innerText = 'Hiện không có đề mở.';
+            return;
+        }
+        activeEx = { id: snap.docs[0].id, ...snap.docs[0].data() };
         document.getElementById('exam-status').classList.add('hidden');
         document.getElementById('auth-form').classList.remove('hidden');
         document.getElementById('exam-title-display').innerText = activeEx.name;
         const initialMins = activeEx.timeLimit || 15;
         document.getElementById('timer').innerText = `${initialMins}:00`;
-        
-        db.collection("questions").where("examId", "==", activeEx.id).get().then(q => {
-            questions = q.docs.map((d, idx) => ({ id: d.id, order: idx, ...d.data() }))
-                .sort((a, b) => {
-                    const sectionOrder = { 'Phần I': 1, 'Phần II': 2 };
-                    return (sectionOrder[a.section] || 9) - (sectionOrder[b.section] || 9) || (a.number || 0) - (b.number || 0) || a.order - b.order;
-                });
-            questionRuntime = questions.map(question => ({
-                answered: false,
-                scoreEarned: 0,
-                tfSelections: question.type === 'tf' ? new Array((question.statements || []).length).fill(null) : null,
-                optionOrder: question.type === 'mcq' ? shuffleOptions(question.a || [], question.correct || 0) : null
-            }));
-            renderQuestionNav();
-        });
+
+        const qSnap = await db.collection('questions').where('examId', '==', activeEx.id).orderBy('order', 'asc').get();
+        questions = qSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderQuestionNav();
     });
 
-    function shuffleOptions(options, correctIndex) {
-        const mappedOptions = options.map((text, index) => ({ text, isCorrect: index === correctIndex }));
-        for (let i = mappedOptions.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [mappedOptions[i], mappedOptions[j]] = [mappedOptions[j], mappedOptions[i]];
-        }
-        return mappedOptions;
+    function getSectionHeader(q) {
+        if (q.type === 'truefalse') return activeEx.partIIHeader || 'Phần II. Đúng Sai';
+        return activeEx.partIHeader || 'Phần I. Trắc nghiệm';
+    }
+
+    function getQuestionLabel(q, index) {
+        return q.displayNumber || (index + 1);
     }
 
     function renderQuestionNav() {
         const nav = document.getElementById('q-nav-list');
         nav.innerHTML = '';
         questions.forEach((q, i) => {
-            nav.innerHTML += `<div class="q-num-item" id="nav-item-${i}" title="${q.section || 'Phần'} - Câu ${q.number || (i+1)}">${(i+1).toString().padStart(2, '0')}</div>`;
+            const tag = q.type === 'truefalse' ? 'ĐS' : 'TN';
+            nav.innerHTML += `<div class="q-num-item" id="nav-item-${i}"><div>${getQuestionLabel(q, i)}</div><small>${tag}</small></div>`;
         });
     }
 
     function startQuiz() {
-        if(!document.getElementById('name').value) return alert("Vui lòng nhập tên!");
+        if (!document.getElementById('name').value.trim()) return alert('Vui lòng nhập tên!');
         document.getElementById('auth-screen').classList.add('hidden');
         document.getElementById('quiz-wrapper').classList.remove('hidden');
-        showQ(); 
+        showQ();
         startTimer(activeEx.timeLimit || 15);
     }
 
     function showQ() {
         const q = questions[curIdx];
-        if (!q) return finish();
-        document.getElementById('section-badge').innerText = (q.section || 'Phần').toUpperCase();
-        document.getElementById('q-text').innerText = `Câu ${q.number || (curIdx+1)}: ${q.q || ''}`;
-        document.getElementById('q-meta').innerText = q.type === 'tf'
-            ? `Chọn Đúng hoặc Sai cho từng ý a, b, c, d tùy số ý xuất hiện trong đề. Câu này có ${(q.statements || []).length} ý, mỗi ý đúng được tính 1 điểm thành phần.`
-            : 'Chọn 1 đáp án đúng nhất.';
-        const box = document.getElementById('options-box'); box.innerHTML = '';
+        const qText = document.getElementById('q-text');
+        const sectionTitle = document.getElementById('section-title');
+        const box = document.getElementById('options-box');
+
+        sectionTitle.classList.remove('hidden');
+        sectionTitle.innerText = getSectionHeader(q);
+        qText.innerText = `Câu ${getQuestionLabel(q, curIdx)}: ${q.q || ''}`;
+        box.innerHTML = '';
         document.querySelectorAll('.q-num-item').forEach(el => el.classList.remove('active'));
         document.getElementById(`nav-item-${curIdx}`).classList.add('active');
 
-        if (q.type === 'tf') renderTrueFalseQuestion(q, box);
-        else renderMultipleChoiceQuestion(q, box);
+        if (q.type === 'truefalse') renderTrueFalseQuestion(q, box);
+        else renderMcqQuestion(q, box);
     }
 
-    function renderMultipleChoiceQuestion(q, box) {
+    function renderMcqQuestion(q, box) {
+        let mappedOptions = (q.a || []).map((text, index) => ({ text, isCorrect: index === q.correct }));
+        for (let i = mappedOptions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [mappedOptions[i], mappedOptions[j]] = [mappedOptions[j], mappedOptions[i]];
+        }
         const labels = ['A', 'B', 'C', 'D'];
-        const runtime = questionRuntime[curIdx];
-        runtime.optionOrder.forEach((opt, i) => {
+        mappedOptions.forEach((opt, i) => {
             const btn = document.createElement('button');
             btn.className = 'option-btn';
             btn.innerHTML = `<span class="option-label">${labels[i]}</span> <span>${opt.text}</span>`;
-            btn.onclick = () => checkMcq(btn, opt.isCorrect);
+            btn.onclick = () => checkMcq(btn, opt.isCorrect, mappedOptions);
             box.appendChild(btn);
         });
     }
 
-    function renderTrueFalseQuestion(q, box) {
-        const runtime = questionRuntime[curIdx];
-        const labels = ['a', 'b', 'c', 'd'];
-        const wrapper = document.createElement('div');
-        wrapper.className = 'tf-grid';
+    function checkMcq(btn, isCorrect, options) {
+        const btns = document.querySelectorAll('.option-btn');
+        btns.forEach(b => b.disabled = true);
+        document.getElementById(`nav-item-${curIdx}`).classList.add('done');
+        if (isCorrect) {
+            btn.classList.add('correct');
+            score++;
+        } else {
+            btn.classList.add('wrong');
+            wrong++;
+            btns.forEach((b, idx) => { if (options[idx].isCorrect) b.classList.add('correct'); });
+        }
+        setTimeout(nextQuestion, 1200);
+    }
 
-        q.statements.forEach((statement, index) => {
+    function renderTrueFalseQuestion(q, box) {
+        const selected = new Array((q.statements || []).length).fill(null);
+        (q.statements || []).forEach((text, idx) => {
             const row = document.createElement('div');
-            row.className = 'tf-row';
-            row.id = `tf-row-${index}`;
-            row.innerHTML = `
-                <div><b>${labels[index]})</b> ${statement}</div>
-                <div class="tf-actions">
-                    <button class="btn btn-outline-success tf-btn" onclick="chooseTf(${index}, true)">Đúng</button>
-                    <button class="btn btn-outline-danger tf-btn" onclick="chooseTf(${index}, false)">Sai</button>
-                </div>
-            `;
-            wrapper.appendChild(row);
+            row.className = 'tf-statement';
+            row.innerHTML = `<div class="tf-label">${String.fromCharCode(97 + idx)}) ${text}</div>`;
+            const choices = document.createElement('div');
+            choices.className = 'tf-choices';
+
+            ['Đúng', 'Sai'].forEach(label => {
+                const btn = document.createElement('button');
+                btn.className = 'tf-choice';
+                btn.type = 'button';
+                btn.innerText = label;
+                btn.onclick = () => {
+                    selected[idx] = (label === 'Đúng');
+                    [...choices.children].forEach(c => c.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    submitBtn.disabled = selected.some(v => v === null);
+                };
+                choices.appendChild(btn);
+            });
+
+            row.appendChild(choices);
+            box.appendChild(row);
         });
 
         const submitBtn = document.createElement('button');
-        submitBtn.className = 'btn btn-primary w-100 mt-3 py-2 fw-bold';
-        submitBtn.id = 'submit-tf-btn';
-        submitBtn.disabled = runtime.tfSelections.some(v => v === null);
-        submitBtn.innerText = 'XÁC NHẬN CÂU ĐÚNG / SAI';
-        submitBtn.onclick = submitTfQuestion;
-
-        box.appendChild(wrapper);
+        submitBtn.className = 'btn btn-primary mt-3 px-4';
+        submitBtn.innerText = 'Xác nhận';
+        submitBtn.disabled = true;
+        submitBtn.onclick = () => checkTrueFalse(selected, q.correctAnswers || []);
         box.appendChild(submitBtn);
     }
 
-    function chooseTf(index, value) {
-        const runtime = questionRuntime[curIdx];
-        runtime.tfSelections[index] = value;
-        const row = document.getElementById(`tf-row-${index}`);
-        const buttons = row.querySelectorAll('.tf-btn');
-        buttons.forEach(btn => btn.classList.remove('active-choice'));
-        buttons[value ? 0 : 1].classList.add('active-choice');
-        document.getElementById('submit-tf-btn').disabled = runtime.tfSelections.some(v => v === null);
-    }
+    function checkTrueFalse(selected, correctAnswers) {
+        const statementBlocks = document.querySelectorAll('.tf-statement');
+        const choiceButtons = document.querySelectorAll('.tf-choice');
+        choiceButtons.forEach(b => b.disabled = true);
 
-    function checkMcq(btn, isCorrect) {
-        const btns = document.querySelectorAll('.option-btn');
-        btns.forEach(b => b.disabled = true);
-        const runtime = questionRuntime[curIdx];
-        runtime.answered = true;
-        runtime.scoreEarned = isCorrect ? 1 : 0;
-        document.getElementById(`nav-item-${curIdx}`).classList.add('done');
-        if(isCorrect) { btn.classList.add('correct'); score += 1; } 
-        else {
-            btn.classList.add('wrong');
-            btns.forEach((b, idx) => { if(runtime.optionOrder[idx].isCorrect) b.classList.add('correct'); });
+        for (let i = 0; i < selected.length; i++) {
+            const isCorrect = selected[i] === correctAnswers[i];
+            if (isCorrect) score++;
+            else wrong++;
+            statementBlocks[i].classList.add(isCorrect ? 'correct' : 'wrong');
         }
-        setTimeout(() => { curIdx++; if(curIdx < questions.length) showQ(); else finish(); }, 1200);
+
+        document.getElementById(`nav-item-${curIdx}`).classList.add('done');
+        const submitBtn = document.querySelector('#options-box .btn.btn-primary');
+        if (submitBtn) submitBtn.disabled = true;
+        setTimeout(nextQuestion, 1200);
     }
 
-    function submitTfQuestion() {
-        const q = questions[curIdx];
-        const runtime = questionRuntime[curIdx];
-        const rows = document.querySelectorAll('.tf-row');
-        let earned = 0;
-        rows.forEach((row, index) => {
-            const correctValue = !!q.correctStatements[index];
-            const selectedValue = runtime.tfSelections[index];
-            const buttons = row.querySelectorAll('.tf-btn');
-            buttons.forEach(b => b.disabled = true);
-            if (selectedValue === correctValue) {
-                row.classList.add('correct-row');
-                earned += 1;
-            } else {
-                row.classList.add('wrong-row');
-            }
-            buttons[correctValue ? 0 : 1].classList.add('active-choice');
-        });
-        runtime.answered = true;
-        runtime.scoreEarned = earned;
-        score += earned;
-        document.getElementById(`nav-item-${curIdx}`).classList.add('done');
-        document.getElementById('submit-tf-btn').disabled = true;
-        setTimeout(() => { curIdx++; if(curIdx < questions.length) showQ(); else finish(); }, 1400);
+    function nextQuestion() {
+        curIdx++;
+        if (curIdx < questions.length) showQ();
+        else finish();
     }
 
     function startTimer(m) {
         let s = m * 60;
         timer = setInterval(() => {
-            let mins = Math.floor(s/60), secs = s%60;
-            document.getElementById('timer').innerText = `${mins}:${secs<10?'0':''}${secs}`;
-            if(s-- <= 0) { clearInterval(timer); finish(); }
+            const mins = Math.floor(s / 60), secs = s % 60;
+            document.getElementById('timer').innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+            if (s-- <= 0) {
+                clearInterval(timer);
+                finish();
+            }
         }, 1000);
     }
 
     function finish() {
-        if(!timer) return;
-        clearInterval(timer);
+        if (!timer && document.getElementById('result-screen').classList.contains('hidden') === false) return;
+        if (timer) clearInterval(timer);
         timer = null;
-        const total = questions.reduce((sum, q) => sum + (q.weight || (q.type === 'tf' ? 4 : 1)), 0);
-        const g10 = total ? ((score/total)*10).toFixed(2) : '0.00';
-        const studentName = document.getElementById('name').value;
+
+        const totalUnits = questions.reduce((sum, q) => {
+            if (q.type === 'truefalse') return sum + ((q.statements || []).length || 0);
+            return sum + 1;
+        }, 0);
+        const g10 = totalUnits > 0 ? ((score / totalUnits) * 10).toFixed(2) : '0.00';
+        const studentName = document.getElementById('name').value.trim();
         document.getElementById('quiz-wrapper').classList.add('hidden');
         document.getElementById('result-screen').classList.remove('hidden');
         document.getElementById('final-score').innerText = g10;
-        document.getElementById('stat-detail').innerText = `Đúng: ${score} | Sai: ${total - score}`;
+        document.getElementById('stat-detail').innerText = `Đúng: ${score} | Sai: ${wrong}`;
 
-        const res = { 
+        const res = {
             name: studentName,
-            class: document.getElementById('class').value, 
+            class: document.getElementById('class').value.trim(),
             examId: activeEx.id,
             score,
-            wrong: total - score,
+            wrong,
             grade10: g10,
-            totalItems: total,
-            time: new Date() 
+            time: new Date()
         };
-        db.collection("results").add(res).then(() => loadRanking(activeEx.id, studentName));
+        db.collection('results').add(res).then(() => loadRanking(activeEx.id, studentName));
     }
 
     function loadRanking(exId, myName) {
-        db.collection("results").where("examId", "==", exId).orderBy("score", "desc").orderBy("time", "asc").onSnapshot(snap => {
-            const list = document.getElementById('rank-list'); list.innerHTML = '';
+        db.collection('results').where('examId', '==', exId).orderBy('score', 'desc').orderBy('time', 'asc').onSnapshot(snap => {
+            const list = document.getElementById('rank-list');
+            list.innerHTML = '';
             snap.docs.forEach((doc, i) => {
-                const d = doc.data(); const isMe = (d.name === myName);
-                list.innerHTML += `<tr class="${isMe?'my-rank fw-bold':''}"><td>${i+1}</td><td>${d.name} ${isMe?'(Bạn)':''}</td><td>${d.score}</td><td>${d.wrong||0}</td><td><span class="badge bg-primary">${d.grade10}</span></td></tr>`;
+                const d = doc.data();
+                const isMe = d.name === myName;
+                list.innerHTML += `<tr class="${isMe ? 'my-rank fw-bold' : ''}"><td>${i + 1}</td><td>${d.name} ${isMe ? '(Bạn)' : ''}</td><td>${d.score}</td><td>${d.wrong || 0}</td><td><span class="badge bg-primary">${d.grade10}</span></td></tr>`;
             });
         });
     }
